@@ -1,0 +1,13 @@
+<Project Sdk="Aspire.AppHost.Sdk/13.1.0">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <UserSecretsId>a1df8171-f6ac-4243-8c23-a4de55687d81</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Modern.Fmis.Api.Host\Modern.Fmis.Api.Host.csproj" />
+    <ProjectReference Include="..\Modern.Fmis.Web.Host\Modern.Fmis.Web.Host.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,23 @@
+<Solution>
+  <Folder Name="/.build/">
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+  </Folder>
+  <Folder Name="/.scm/">
+    <File Path=".gitignore" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/Modern.Fmis.Api.Host/Modern.Fmis.Api.Host.csproj" />
+    <Project Path="src/Modern.Fmis.Aspire.Defaults/Modern.Fmis.Aspire.Defaults.csproj" />
+    <Project Path="src/Modern.Fmis.Aspire.Host/Modern.Fmis.Aspire.Host.csproj" />
+    <Project Path="src/Modern.Fmis.Core/Modern.Fmis.Core.csproj" />
+    <Project Path="src/Modern.Fmis.Models/Modern.Fmis.Models.csproj" />
+    <Project Path="src/Modern.Fmis.Web.Host/Modern.Fmis.Web.Host.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Modern.Fmis.Api.Host.Tests/Modern.Fmis.Api.Host.Tests.csproj" />
+    <Project Path="tests/Modern.Fmis.Aspire.Host.Tests/Modern.Fmis.Aspire.Host.Tests.csproj" />
+    <Project Path="tests/Modern.Fmis.Core.Tests/Modern.Fmis.Core.Tests.csproj" />
+    <Project Path="tests/Modern.Fmis.Web.Host.Tests/Modern.Fmis.Web.Host.Tests.csproj" />
+  </Folder>
+</Solution>

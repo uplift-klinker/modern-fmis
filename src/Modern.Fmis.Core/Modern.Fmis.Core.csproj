@@ -1,0 +1,5 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\Modern.Fmis.Models\Modern.Fmis.Models.csproj" />
+  </ItemGroup>
+</Project>
