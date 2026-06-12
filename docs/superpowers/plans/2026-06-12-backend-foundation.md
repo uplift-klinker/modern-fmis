@@ -162,9 +162,11 @@ dotnet add tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj reference src/Fmis.Api/Fmi
 
 ```bash
 # Core: EF Core + Npgsql + design-time + DI abstractions + FluentValidation
-dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore
-dotnet add src/Fmis.Core/Fmis.Core.csproj package Npgsql.EntityFrameworkCore.PostgreSQL
-dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore.Design
+# Pin the EF Core packages to the version the Npgsql provider targets (Npgsql 10.0.2 -> EF Core 10.0.4)
+# so all Microsoft.EntityFrameworkCore.* resolve to the same version (no Relational conflict / MSB3277).
+dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore --version 10.0.4
+dotnet add src/Fmis.Core/Fmis.Core.csproj package Npgsql.EntityFrameworkCore.PostgreSQL --version 10.0.2
+dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore.Design --version 10.0.4
 dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.Extensions.DependencyInjection.Abstractions
 dotnet add src/Fmis.Core/Fmis.Core.csproj package FluentValidation
 dotnet add src/Fmis.Core/Fmis.Core.csproj package FluentValidation.DependencyInjectionExtensions
@@ -174,7 +176,7 @@ dotnet add src/Fmis.Api/Fmis.Api.csproj package Microsoft.AspNetCore.Authenticat
 dotnet add src/Fmis.Api/Fmis.Api.csproj package Microsoft.AspNetCore.OpenApi
 
 # TestSupport: InMemory provider + DI (for the TestServices container)
-dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Microsoft.EntityFrameworkCore.InMemory
+dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Microsoft.EntityFrameworkCore.InMemory --version 10.0.4
 dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Microsoft.Extensions.DependencyInjection
 
 # Api.Tests: Mvc.Testing
