@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Fmis.Api/Fmis.Api.csproj" />
+    <Project Path="src/Fmis.Core/Fmis.Core.csproj" />
+    <Project Path="src/Fmis.Models/Fmis.Models.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj" />
+    <Project Path="tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj" />
+    <Project Path="tests/Fmis.TestSupport/Fmis.TestSupport.csproj" />
+  </Folder>
+</Solution>
