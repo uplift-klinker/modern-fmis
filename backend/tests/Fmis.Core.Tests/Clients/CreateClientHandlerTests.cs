@@ -31,6 +31,15 @@ public class CreateClientHandlerTests : InMemoryCoreTestBase
     }
 
     [Fact]
+    public async Task Accepts_a_client_with_only_an_email()
+    {
+        var result = await CommandBus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", "ops@acme.example", null));
+
+        Assert.NotEqual(Guid.Empty, result.Id);
+    }
+
+    [Fact]
     public async Task Rejects_a_blank_name()
     {
         await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(

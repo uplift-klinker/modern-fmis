@@ -796,6 +796,15 @@ public class CreateClientHandlerTests : InMemoryCoreTestBase
     }
 
     [Fact]
+    public async Task Accepts_a_client_with_only_an_email()
+    {
+        var result = await CommandBus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", "ops@acme.example", null));
+
+        Assert.NotEqual(Guid.Empty, result.Id);
+    }
+
+    [Fact]
     public async Task Rejects_a_blank_name()
     {
         await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(
@@ -871,7 +880,6 @@ public class CreateClientCommandValidator : AbstractValidator<CreateClientComman
 `backend/src/Fmis.Core/Clients/CreateClient/CreateClientHandler.cs`:
 
 ```csharp
-using Fmis.Core.Clients;
 using Fmis.Core.Common.Messaging;
 
 namespace Fmis.Core.Clients.CreateClient;
@@ -900,7 +908,7 @@ public class CreateClientHandler(FmisDbContext db)
 - [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~CreateClientHandlerTests"`
-Expected: PASS (4 tests). The handler and validator are auto-discovered by `AddFmisCoreHandlers`.
+Expected: PASS (5 tests). The handler and validator are auto-discovered by `AddFmisCoreHandlers`.
 
 - [ ] **Step 8: Commit**
 
