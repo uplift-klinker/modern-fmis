@@ -18,6 +18,7 @@
 
 ```
 global.json                                   pins .NET SDK to the latest LTS (10.x)
+.config/dotnet-tools.json                     local dotnet tools (dotnet-ef)
 backend/
 ├─ Fmis.slnx
 ├─ src/
@@ -709,11 +710,16 @@ volumes:
 
 > The backend service is added in Task 15 once the Api runs.
 
-- [ ] **Step 2: Install the EF Core CLI tool (if not already present)**
+- [ ] **Step 2: Install the EF Core CLI as a LOCAL tool**
+
+Use a repo-local tool manifest (`.config/dotnet-tools.json`) — never a global tool — so the EF CLI version is pinned and reproducible. Run from the repo root:
 
 ```bash
-dotnet tool install --global dotnet-ef || dotnet tool update --global dotnet-ef
+dotnet new tool-manifest
+dotnet tool install dotnet-ef
 ```
+
+This creates `.config/dotnet-tools.json` at the repo root. The migration command below then resolves `dotnet ef` from this manifest.
 
 - [ ] **Step 3: Generate the initial migration**
 
@@ -735,8 +741,8 @@ Expected: `Build succeeded`. (The migration is applied for real at API startup i
 - [ ] **Step 5: Commit**
 
 ```bash
-git add docker-compose.yml backend/src/Fmis.Core/Migrations/
-git commit -m "Add docker-compose db service and initial EF migration"
+git add .config/dotnet-tools.json docker-compose.yml backend/src/Fmis.Core/Migrations/
+git commit -m "Add local dotnet-ef tool, docker-compose db service, and initial EF migration"
 ```
 
 ---

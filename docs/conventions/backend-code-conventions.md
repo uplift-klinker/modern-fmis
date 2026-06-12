@@ -2,6 +2,10 @@
 
 **Applies to:** all backend C# code (`Fmis.*`), every phase.
 
+## Tooling: local, not global
+
+Use **local** dotnet tools via a repo `.config/dotnet-tools.json` manifest (`dotnet tool install <tool>` without `--global`), never globally-installed tools. This pins tool versions per-repo and keeps builds reproducible. Run tools through `dotnet <tool>` (e.g. `dotnet ef`), which resolves them from the manifest. CI runs `dotnet tool restore` before using them.
+
 ## No comments
 
 Don't add comments to classes, methods, or fields — a comment usually signals a name that isn't carrying its weight. Make the code self-explanatory through naming and structure instead. No XML doc comments and no inline explanatory comments. Where a *why* genuinely needs recording (a non-obvious decision or trade-off), it belongs in the design spec or these conventions, not in the code.
