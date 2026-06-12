@@ -69,6 +69,9 @@ When a new cross-cutting concern is added, extend or add an extension method —
 
 ## Testing: exercise through DI, not `new`
 
+All code is developed **test-first** — see [`test-driven-development.md`](test-driven-development.md). The points below describe *how* tests are written; TDD governs *when* (a failing test before the production code, always).
+
+
 Handler/slice tests resolve `ICommandBus` / `IQueryBus` from a **real DI container** (the same composition the Api uses) and execute messages through them. Never `new` a handler in a test.
 
 Slice tests inherit **`InMemoryCoreTestBase`** (in `Fmis.TestSupport`), which owns the DI container + a single scope and exposes `CommandBus` / `QueryBus` / `Db` — so a test body has no scope/setup boilerplate. It implements `IDisposable`; xUnit disposes the test instance (and thus the scope) after each test. `InMemoryCoreTestBase` builds on `TestServices.CreateInMemory()`, which backs the container with an InMemory `FmisDbContext`. A sibling `ContainerCoreTestBase` (Testcontainers-backed) is added when a test first needs real Postgres (e.g. PostGIS/spatial work); the two share a common abstract base at that point. No mocking frameworks — use real implementations or the InMemory provider.
