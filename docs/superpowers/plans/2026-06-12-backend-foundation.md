@@ -19,7 +19,7 @@
 ```
 global.json                                   pins .NET SDK to the latest LTS (10.x)
 backend/
-├─ Fmis.sln
+├─ Fmis.slnx
 ├─ src/
 │  ├─ Fmis.Core/
 │  │  ├─ Fmis.Core.csproj
@@ -93,7 +93,7 @@ docker-compose.yml                            postgres+postgis, backend
 ## Task 1: Solution & project skeleton (with SDK pin)
 
 **Files:**
-- Create: `global.json`, `backend/Fmis.sln`, and all `.csproj` files.
+- Create: `global.json`, `backend/Fmis.slnx`, and all `.csproj` files.
 
 - [ ] **Step 1: Pin the SDK to the latest LTS (.NET 10) with `global.json`, then create the solution and source projects**
 
@@ -183,7 +183,7 @@ dotnet add tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj package Microsoft.AspNetCo
 
 - [ ] **Step 6: Build to verify the skeleton compiles**
 
-Run: `dotnet build backend/Fmis.sln`
+Run: `dotnet build backend/Fmis.slnx`
 Expected: `Build succeeded` with 0 errors.
 
 - [ ] **Step 7: Commit**
@@ -1721,7 +1721,7 @@ Expected: PASS. (If `/clients` is absent, confirm `MapOpenApi()` runs and endpoi
 
 - [ ] **Step 3: Run the entire backend suite**
 
-Run: `dotnet test backend/Fmis.sln`
+Run: `dotnet test backend/Fmis.slnx`
 Expected: ALL PASS (bus dispatch + validation, Core slices via the bus, Api integration incl. 401, OpenAPI smoke).
 
 - [ ] **Step 4: Commit**
@@ -1751,7 +1751,7 @@ git commit -m "Add OpenAPI document smoke test"
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
-RUN dotnet restore Fmis.sln
+RUN dotnet restore Fmis.slnx
 RUN dotnet publish src/Fmis.Api/Fmis.Api.csproj -c Release -o /app/publish
 
 # Run
@@ -1847,7 +1847,7 @@ git commit -m "Add backend Dockerfile and docker-compose service"
 
 ## Done criteria
 
-- `dotnet test backend/Fmis.sln` passes all tests (bus dispatch + validation, Core slices via the bus, Api integration incl. 401 and both 400 validation paths, OpenAPI smoke).
+- `dotnet test backend/Fmis.slnx` passes all tests (bus dispatch + validation, Core slices via the bus, Api integration incl. 401 and both 400 validation paths, OpenAPI smoke).
 - `docker compose up --build` runs db + backend; unauthenticated `/clients` returns 401; `/openapi/v1.json` returns 200.
 - The Client slice exists end-to-end through Api → Models → bus (validate → dispatch) → Core handler → EF Core → Postgres, with authentication enforced and no authorization rules.
 - Patterns established for Plan 2/3 to copy: vertical slice layout, in-house command/query bus with reflection discovery + command validation, handler-via-DI (never constructed), `*Entity`/`*Model`/`*Result` naming, generic `ListResult`/`ListResultModel`, Core DI composition root, `TestServices` (no-mocks, bus-driven tests), test auth scheme.
