@@ -219,15 +219,15 @@ namespace Fmis.Core.Tests.Common;
 
 public class CommandBusTests
 {
-    private record PingCommand(string Text) : ICommand<string>;
+    public record PingCommand(string Text) : ICommand<string>;
 
-    private class PingHandler : ICommandHandler<PingCommand, string>
+    public class PingHandler : ICommandHandler<PingCommand, string>
     {
         public Task<string> HandleAsync(PingCommand command, CancellationToken cancellationToken)
             => Task.FromResult($"pong:{command.Text}");
     }
 
-    private class PingCommandValidator : AbstractValidator<PingCommand>
+    public class PingCommandValidator : AbstractValidator<PingCommand>
     {
         public PingCommandValidator() => RuleFor(c => c.Text).NotEmpty();
     }
