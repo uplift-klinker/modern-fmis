@@ -6,7 +6,7 @@
 
 **Architecture:** Modular monolith with vertical slices. `Fmis.Api` (HTTP) → `Fmis.Core` (vertical slices + EF Core) and `Fmis.Models` (external DTOs). Core knows nothing about HTTP or external DTOs; the Api translates between them. Slices are invoked through an in-house command/query **bus** resolved from DI — handlers are auto-discovered by reflection and never constructed directly. The command bus **validates each command** (FluentValidation) before dispatch. Persistence (EF Core / Npgsql) lives inside Core; handlers depend on `FmisDbContext` directly (no repository abstraction, no mocking frameworks). Authentication only (Auth0 JWT bearer) — no authorization rules.
 
-**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core MVC controllers, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), FluentValidation, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, built-in `Microsoft.AspNetCore.OpenApi`.
+**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via `backend/global.json` — ASP.NET Core MVC controllers, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), FluentValidation, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, built-in `Microsoft.AspNetCore.OpenApi`.
 
 **Conventions (from `docs/conventions/`):** New commits only — never amend or force-push. `*Entity` for EF entities, `*Model` for external DTOs, per-operation `*Result` types, generic `ListResult<T>` / `ListResultModel<T>`. In-house command/query bus — no MediatR, reflection-based handler discovery, no direct handler construction. No mocking frameworks. Tests exercise slices through the bus resolved from a real DI container. One test project per production project, plus a no-tests `Fmis.TestSupport`.
 
@@ -17,9 +17,9 @@
 ## File Structure
 
 ```
-global.json                                   pins .NET SDK to the latest LTS (10.x)
 .config/dotnet-tools.json                     local dotnet tools (dotnet-ef)
 backend/
+├─ global.json                                pins .NET SDK to the latest LTS (10.x)
 ├─ Fmis.slnx
 ├─ src/
 │  ├─ Fmis.Core/
@@ -94,11 +94,11 @@ docker-compose.yml                            postgres+postgis, backend
 ## Task 1: Solution & project skeleton (with SDK pin)
 
 **Files:**
-- Create: `global.json`, `backend/Fmis.slnx`, and all `.csproj` files.
+- Create: `backend/global.json`, `backend/Fmis.slnx`, and all `.csproj` files.
 
-- [ ] **Step 1: Pin the SDK to the latest LTS (.NET 10) with `global.json`, then create the solution and source projects**
+- [ ] **Step 1: Pin the SDK to the latest LTS (.NET 10) with `backend/global.json`, then create the solution and source projects**
 
-.NET 10 is the current LTS. Pin it at the **repo root** so every `dotnet` command resolves to it. Create `global.json`:
+.NET 10 is the current LTS. `global.json` is .NET-specific, so it lives in **`backend/`** (not the monorepo root — the future `frontend/` shouldn't inherit it). The .NET CLI resolves `global.json` from the working directory upward, so **run .NET commands from `backend/`** for the pin to apply. Create `backend/global.json`:
 
 ```json
 {
@@ -192,8 +192,8 @@ Expected: `Build succeeded` with 0 errors.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add global.json backend/
-git commit -m "Add backend solution skeleton and pin SDK via global.json"
+git add backend/
+git commit -m "Add backend solution skeleton and pin SDK via backend/global.json"
 ```
 
 ---
