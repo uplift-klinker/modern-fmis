@@ -9,6 +9,23 @@ services:
       - "5432:5432"
     volumes:
       - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fmis -d fmis"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: src/Fmis.Api/Dockerfile
+    environment:
+      ConnectionStrings__Fmis: "Host=db;Port=5432;Database=fmis;Username=fmis;Password=fmis"
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   db-data:
