@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Read(**/bin/**)",
+      "Read(**/obj/**)",
+      "Edit(**/bin/**)",
+      "Edit(**/obj/**)",
+      "Write(**/bin/**)",
+      "Write(**/obj/**)"
+    ]
+  }
+}
