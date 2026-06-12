@@ -69,7 +69,7 @@ backend/
    ├─ Fmis.TestSupport/
    │  ├─ Fmis.TestSupport.csproj
    │  ├─ TestServices.cs                      DI container factory (InMemory) for bus tests
-   │  └─ CoreTestBase.cs                       base class: owns scope, exposes buses/Db, disposes
+   │  └─ InMemoryCoreTestBase.cs                       base class: owns scope, exposes buses/Db, disposes
    ├─ Fmis.Core.Tests/
    │  ├─ Fmis.Core.Tests.csproj
    │  ├─ Common/CommandBusTests.cs
@@ -600,13 +600,13 @@ git commit -m "Add ClientEntity, FmisDbContext, and Core DI wiring with discover
 
 ---
 
-## Task 4: TestServices factory and CoreTestBase
+## Task 4: TestServices factory and InMemoryCoreTestBase
 
 **Files:**
 - Create: `backend/tests/Fmis.TestSupport/TestServices.cs`
-- Create: `backend/tests/Fmis.TestSupport/CoreTestBase.cs`
+- Create: `backend/tests/Fmis.TestSupport/InMemoryCoreTestBase.cs`
 
-`TestServices` builds the same Core composition the Api uses (buses, discovered handlers, validators), backed by a unique InMemory database. `CoreTestBase` is the base class every slice test inherits: it creates the provider + scope once in its constructor, exposes `CommandBus`/`QueryBus`/`Db`, and disposes everything via `IDisposable` (xUnit calls `Dispose` after each test). This removes the per-test scope boilerplate. (A Testcontainers-backed variant is added later, when a test first needs real Postgres.)
+`TestServices` builds the same Core composition the Api uses (buses, discovered handlers, validators), backed by a unique InMemory database. `InMemoryCoreTestBase` is the base class every slice test inherits: it creates the provider + scope once in its constructor, exposes `CommandBus`/`QueryBus`/`Db`, and disposes everything via `IDisposable` (xUnit calls `Dispose` after each test). This removes the per-test scope boilerplate. The name advertises the backing store; a sibling `ContainerCoreTestBase` (Testcontainers-backed) is added later when a test first needs real Postgres — likely sharing a common abstract base with this one at that point.
 
 - [ ] **Step 1: Write the DI container factory**
 
@@ -639,7 +639,7 @@ public static class TestServices
 
 - [ ] **Step 2: Write the base test class**
 
-`backend/tests/Fmis.TestSupport/CoreTestBase.cs`:
+`backend/tests/Fmis.TestSupport/InMemoryCoreTestBase.cs`:
 
 ```csharp
 using Fmis.Core;
@@ -654,12 +654,12 @@ namespace Fmis.TestSupport;
 /// Resolve work through <see cref="CommandBus"/>/<see cref="QueryBus"/>; seed/assert via <see cref="Db"/>.
 /// All three share the same scope, so the DbContext is consistent across them.
 /// </summary>
-public abstract class CoreTestBase : IDisposable
+public abstract class InMemoryCoreTestBase : IDisposable
 {
     private readonly ServiceProvider _provider;
     private readonly IServiceScope _scope;
 
-    protected CoreTestBase()
+    protected InMemoryCoreTestBase()
     {
         _provider = TestServices.CreateInMemory();
         _scope = _provider.CreateScope();
@@ -688,7 +688,7 @@ Expected: `Build succeeded`.
 
 ```bash
 git add backend/tests/Fmis.TestSupport/
-git commit -m "Add TestServices factory and CoreTestBase for slice tests"
+git commit -m "Add TestServices factory and InMemoryCoreTestBase for slice tests"
 ```
 
 ---
@@ -776,7 +776,7 @@ using Fmis.TestSupport;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class CreateClientHandlerTests : CoreTestBase
+public class CreateClientHandlerTests : InMemoryCoreTestBase
 {
     [Fact]
     public async Task Persists_the_client_and_returns_it_with_a_generated_id()
@@ -941,7 +941,7 @@ using Fmis.TestSupport;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class ListClientsHandlerTests : CoreTestBase
+public class ListClientsHandlerTests : InMemoryCoreTestBase
 {
     [Fact]
     public async Task Returns_all_clients_with_total_count()
@@ -1058,7 +1058,7 @@ using Fmis.TestSupport;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class GetClientHandlerTests : CoreTestBase
+public class GetClientHandlerTests : InMemoryCoreTestBase
 {
     [Fact]
     public async Task Returns_the_client_when_it_exists()
