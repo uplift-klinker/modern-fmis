@@ -275,7 +275,6 @@ Expected: FAIL — messaging types do not exist (compile error).
 ```csharp
 namespace Fmis.Core.Common.Messaging;
 
-/// <summary>A command that produces <typeparamref name="TResult"/>.</summary>
 public interface ICommand<TResult>;
 ```
 
@@ -345,7 +344,6 @@ public class CommandBus(IServiceProvider provider) : ICommandBus
 ```csharp
 namespace Fmis.Core.Common.Messaging;
 
-/// <summary>A query that produces <typeparamref name="TResult"/>.</summary>
 public interface IQuery<TResult>;
 ```
 
@@ -401,10 +399,6 @@ namespace Fmis.Core.Common.Messaging;
 
 public static class MessagingServiceCollectionExtensions
 {
-    /// <summary>
-    /// Registers the command/query buses and auto-registers every ICommandHandler&lt;,&gt; and
-    /// IQueryHandler&lt;,&gt; implementation found in the supplied assemblies.
-    /// </summary>
     public static IServiceCollection AddMessaging(this IServiceCollection services, params Assembly[] assemblies)
     {
         services.AddScoped<ICommandBus, CommandBus>();
@@ -581,8 +575,8 @@ public static class CoreServiceCollectionExtensions
     public static IServiceCollection AddFmisCoreHandlers(this IServiceCollection services)
     {
         var coreAssembly = typeof(CoreServiceCollectionExtensions).Assembly;
-        services.AddMessaging(coreAssembly);                  // buses + handler discovery
-        services.AddValidatorsFromAssembly(coreAssembly);     // FluentValidation validators
+        services.AddMessaging(coreAssembly);
+        services.AddValidatorsFromAssembly(coreAssembly);
         return services;
     }
 }
@@ -621,11 +615,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.TestSupport;
 
-/// <summary>
-/// Builds the same Core composition the Api uses, backed by a unique InMemory database.
-/// Resolve <c>ICommandBus</c>/<c>IQueryBus</c> from a scope and execute messages — never
-/// construct handlers directly.
-/// </summary>
 public static class TestServices
 {
     public static ServiceProvider CreateInMemory()
@@ -650,12 +639,6 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.TestSupport;
 
-/// <summary>
-/// Base class for slice tests. Owns a Core DI container (InMemory) and a single scope,
-/// and disposes both after each test (xUnit calls <see cref="Dispose"/> per test instance).
-/// Resolve work through <see cref="CommandBus"/>/<see cref="QueryBus"/>; seed/assert via <see cref="Db"/>.
-/// All three share the same scope, so the DbContext is consistent across them.
-/// </summary>
 public abstract class InMemoryCoreTestBase : IDisposable
 {
     private readonly ServiceProvider _provider;
@@ -1270,8 +1253,6 @@ public static class ApiServiceCollectionExtensions
 
     public static IServiceCollection AddApiControllers(this IServiceCollection services)
     {
-        // Validation is centralized in the command bus (FluentValidation); turn off MVC's
-        // automatic model-state 400 so requests always reach the action and the bus validator.
         services.AddControllers()
             .ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
         return services;
@@ -1290,7 +1271,6 @@ public static class ApiServiceCollectionExtensions
         return services;
     }
 
-    // Authentication only — verify identity via Auth0 JWT. No authorization policies.
     public static IServiceCollection AddApiAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -1331,7 +1311,6 @@ public static class ApiApplicationBuilderExtensions
 
     public static WebApplication MapApiEndpoints(this WebApplication app)
     {
-        // MVC controllers are discovered automatically via [ApiController]/[Route] attributes.
         app.MapControllers();
         return app;
     }
@@ -1368,9 +1347,10 @@ app.MigrateDatabase()
 
 app.Run();
 
-// Exposed so Fmis.Api.Tests' WebApplicationFactory<Program> can reference it.
 public partial class Program;
 ```
+
+> The `public partial class Program;` line exposes the otherwise-internal `Program` type so `Fmis.Api.Tests`' `WebApplicationFactory<Program>` can reference it.
 
 - [ ] **Step 5: Replace `appsettings.json`**
 
@@ -1436,7 +1416,7 @@ namespace Fmis.Api.Clients;
 
 [ApiController]
 [Route("clients")]
-[Authorize] // authentication only — any authenticated user; no policies
+[Authorize]
 public class ClientsController(ICommandBus commandBus, IQueryBus queryBus) : ControllerBase
 {
     [HttpPost]
@@ -1555,12 +1535,10 @@ public class FmisApiFactory : WebApplicationFactory<Program>
     {
         builder.ConfigureTestServices(services =>
         {
-            // Replace the real Npgsql DbContext with a per-factory InMemory database.
             services.RemoveAll(typeof(DbContextOptions<FmisDbContext>));
             services.AddDbContext<FmisDbContext>(options =>
                 options.UseInMemoryDatabase($"fmis-api-tests-{Guid.NewGuid()}"));
 
-            // Replace JWT bearer with the test scheme as the default for authenticate + challenge.
             services.AddAuthentication(TestAuthHandler.SchemeName)
                 .AddScheme<AuthenticationSchemeOptions, TestAuthHandler>(
                     TestAuthHandler.SchemeName, _ => { });
@@ -1681,7 +1659,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task Request_without_authentication_returns_401()
     {
-        var client = factory.CreateClient(); // no Authorization header
+        var client = factory.CreateClient();
 
         var response = await client.GetAsync("/clients");
 

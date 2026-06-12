@@ -2,6 +2,10 @@
 
 **Applies to:** all backend C# code (`Fmis.*`), every phase.
 
+## No comments
+
+Don't add comments to classes, methods, or fields — a comment usually signals a name that isn't carrying its weight. Make the code self-explanatory through naming and structure instead. No XML doc comments and no inline explanatory comments. Where a *why* genuinely needs recording (a non-obvious decision or trade-off), it belongs in the design spec or these conventions, not in the code.
+
 ## Naming postfixes
 
 Make a type's role obvious from its name:
