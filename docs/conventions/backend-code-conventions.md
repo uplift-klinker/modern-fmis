@@ -38,6 +38,7 @@ Slices are invoked through a thin in-house bus — **no MediatR** (it is now com
 - `ICommand<TResult>` + `ICommandHandler<TCommand, TResult>` + `ICommandBus.ExecuteAsync(command, ct)`.
 - `IQuery<TResult>` + `IQueryHandler<TQuery, TResult>` + `IQueryBus.QueryAsync(query, ct)`.
 - The bus resolves the closed handler type from `IServiceProvider` and dispatches. Handlers depend on `FmisDbContext` directly.
+- Bus methods default the `CancellationToken` (`= default`) so callers may omit it (e.g. in tests); controllers still pass their request token through for cancellation propagation.
 - **Handlers are auto-registered by reflection.** `AddMessaging(params Assembly[])` discovers every `ICommandHandler<,>` / `IQueryHandler<,>` implementation in the given assemblies and registers it — never register handlers one-by-one.
 - **The command bus validates first.** Before dispatch, `CommandBus` resolves an optional `IValidator<TCommand>` (FluentValidation) and throws `ValidationException` on failure; the Api maps that to a 400 via an `IExceptionHandler`. Validators live with their slice and are registered by assembly scan. Queries are not validated.
 - `IEventBus` (publish to many `IEventHandler<TEvent>`) follows the same shape and is added **when the first domain event exists** — not before.

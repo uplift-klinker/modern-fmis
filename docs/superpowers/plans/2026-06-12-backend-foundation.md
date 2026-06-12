@@ -241,7 +241,7 @@ public class CommandBusTests
         await using var provider = services.BuildServiceProvider();
 
         var bus = provider.GetRequiredService<ICommandBus>();
-        var result = await bus.ExecuteAsync(new PingCommand("hi"), CancellationToken.None);
+        var result = await bus.ExecuteAsync(new PingCommand("hi"));
 
         Assert.Equal("pong:hi", result);
     }
@@ -258,7 +258,7 @@ public class CommandBusTests
         var bus = provider.GetRequiredService<ICommandBus>();
 
         await Assert.ThrowsAsync<ValidationException>(
-            () => bus.ExecuteAsync(new PingCommand(""), CancellationToken.None));
+            () => bus.ExecuteAsync(new PingCommand("")));
     }
 }
 ```
@@ -297,7 +297,7 @@ namespace Fmis.Core.Common.Messaging;
 
 public interface ICommandBus
 {
-    Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken);
+    Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken = default);
 }
 ```
 
@@ -313,7 +313,7 @@ namespace Fmis.Core.Common.Messaging;
 
 public class CommandBus(IServiceProvider provider) : ICommandBus
 {
-    public async Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)
+    public async Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken = default)
     {
         await ValidateAsync(command, cancellationToken);
 
@@ -367,7 +367,7 @@ namespace Fmis.Core.Common.Messaging;
 
 public interface IQueryBus
 {
-    Task<TResult> QueryAsync<TResult>(IQuery<TResult> query, CancellationToken cancellationToken);
+    Task<TResult> QueryAsync<TResult>(IQuery<TResult> query, CancellationToken cancellationToken = default);
 }
 ```
 
@@ -380,7 +380,7 @@ namespace Fmis.Core.Common.Messaging;
 
 public class QueryBus(IServiceProvider provider) : IQueryBus
 {
-    public Task<TResult> QueryAsync<TResult>(IQuery<TResult> query, CancellationToken cancellationToken)
+    public Task<TResult> QueryAsync<TResult>(IQuery<TResult> query, CancellationToken cancellationToken = default)
     {
         var handlerType = typeof(IQueryHandler<,>).MakeGenericType(query.GetType(), typeof(TResult));
         dynamic handler = provider.GetRequiredService(handlerType);
@@ -784,8 +784,7 @@ public class CreateClientHandlerTests : InMemoryCoreTestBase
     public async Task Persists_the_client_and_returns_it_with_a_generated_id()
     {
         var result = await CommandBus.ExecuteAsync(
-            new CreateClientCommand("Acme Farms", "ops@acme.example", "555-0100"),
-            CancellationToken.None);
+            new CreateClientCommand("Acme Farms", "ops@acme.example", "555-0100"));
 
         Assert.NotEqual(Guid.Empty, result.Id);
         Assert.Equal("Acme Farms", result.Name);
@@ -800,8 +799,7 @@ public class CreateClientHandlerTests : InMemoryCoreTestBase
     public async Task Accepts_a_client_with_only_a_phone_number()
     {
         var result = await CommandBus.ExecuteAsync(
-            new CreateClientCommand("Acme Farms", null, "555-0100"),
-            CancellationToken.None);
+            new CreateClientCommand("Acme Farms", null, "555-0100"));
 
         Assert.NotEqual(Guid.Empty, result.Id);
     }
@@ -810,14 +808,14 @@ public class CreateClientHandlerTests : InMemoryCoreTestBase
     public async Task Rejects_a_blank_name()
     {
         await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(
-            new CreateClientCommand("", "ops@acme.example", null), CancellationToken.None));
+            new CreateClientCommand("", "ops@acme.example", null)));
     }
 
     [Fact]
     public async Task Rejects_a_client_with_no_email_or_phone()
     {
         await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(
-            new CreateClientCommand("Acme Farms", null, null), CancellationToken.None));
+            new CreateClientCommand("Acme Farms", null, null)));
     }
 }
 ```
@@ -948,12 +946,10 @@ public class ListClientsHandlerTests : InMemoryCoreTestBase
     [Fact]
     public async Task Returns_all_clients_with_total_count()
     {
-        await CommandBus.ExecuteAsync(
-            new CreateClientCommand("Acme Farms", "ops@acme.example", null), CancellationToken.None);
-        await CommandBus.ExecuteAsync(
-            new CreateClientCommand("Bedrock Ag", "info@bedrock.example", null), CancellationToken.None);
+        await CommandBus.ExecuteAsync(new CreateClientCommand("Acme Farms", "ops@acme.example", null));
+        await CommandBus.ExecuteAsync(new CreateClientCommand("Bedrock Ag", "info@bedrock.example", null));
 
-        var result = await QueryBus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new ListClientsQuery());
 
         Assert.Equal(2, result.TotalCount);
         Assert.Equal(2, result.Items.Count);
@@ -964,7 +960,7 @@ public class ListClientsHandlerTests : InMemoryCoreTestBase
     [Fact]
     public async Task Returns_empty_with_zero_total_when_there_are_no_clients()
     {
-        var result = await QueryBus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new ListClientsQuery());
 
         Assert.Equal(0, result.TotalCount);
         Assert.Empty(result.Items);
@@ -1072,9 +1068,9 @@ public class GetClientHandlerTests : InMemoryCoreTestBase
     public async Task Returns_the_client_when_it_exists()
     {
         var created = await CommandBus.ExecuteAsync(
-            new CreateClientCommand("Acme Farms", "ops@acme.example", null), CancellationToken.None);
+            new CreateClientCommand("Acme Farms", "ops@acme.example", null));
 
-        var result = await QueryBus.QueryAsync(new GetClientQuery(created.Id), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new GetClientQuery(created.Id));
 
         Assert.NotNull(result);
         Assert.Equal(created.Id, result!.Id);
@@ -1084,7 +1080,7 @@ public class GetClientHandlerTests : InMemoryCoreTestBase
     [Fact]
     public async Task Returns_null_when_the_client_does_not_exist()
     {
-        var result = await QueryBus.QueryAsync(new GetClientQuery(Guid.NewGuid()), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new GetClientQuery(Guid.NewGuid()));
 
         Assert.Null(result);
     }
