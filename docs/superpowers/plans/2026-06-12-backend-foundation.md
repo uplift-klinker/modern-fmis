@@ -6,7 +6,7 @@
 
 **Architecture:** Modular monolith with vertical slices. `Fmis.Api` (HTTP) → `Fmis.Core` (vertical slices + EF Core) and `Fmis.Models` (external DTOs). Core knows nothing about HTTP or external DTOs; the Api translates between them. Persistence (EF Core / Npgsql) lives inside Core; feature handlers depend on `FmisDbContext` directly (no repository abstraction, no mocking frameworks). Authentication only (Auth0 JWT bearer) — no authorization rules.
 
-**Tech Stack:** .NET 10 (`net10.0`), ASP.NET Core minimal APIs, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, `Testcontainers.PostgreSql`, built-in `Microsoft.AspNetCore.OpenApi`.
+**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core minimal APIs, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, `Testcontainers.PostgreSql`, built-in `Microsoft.AspNetCore.OpenApi`.
 
 **Conventions (from `docs/conventions/`):** New commits only — never amend or force-push. No mocking frameworks. Do not split test projects by unit/integration. One test project per production project, plus a no-tests `Fmis.TestSupport`.
 
@@ -17,6 +17,7 @@
 ## File Structure
 
 ```
+global.json                                   pins .NET SDK to the latest LTS (10.x)
 backend/
 ├─ Fmis.sln
 ├─ src/
@@ -76,9 +77,22 @@ docker-compose.yml                            postgres+postgis, backend
 **Files:**
 - Create: `backend/Fmis.sln` and all `.csproj` files listed below.
 
-- [ ] **Step 1: Create the solution and source projects**
+- [ ] **Step 1: Pin the SDK to the latest LTS (.NET 10) with `global.json`, then create the solution and source projects**
 
-Run from the repo root:
+.NET 10 is the current LTS. Pin it at the repo root so every `dotnet` command (anywhere in the repo) resolves to it. Create `global.json` at the **repo root**:
+
+```json
+{
+  "sdk": {
+    "version": "10.0.102",
+    "rollForward": "latestFeature"
+  }
+}
+```
+
+`rollForward: latestFeature` keeps the project on .NET 10 (the LTS major) while allowing the newest installed 10.x feature band/patch — it will not silently jump to a non-LTS major. (`10.0.102` is the version installed at planning time; adjust to the latest installed 10.x if newer.)
+
+Then create the solution and projects from the repo root:
 
 ```bash
 mkdir -p backend
@@ -162,8 +176,8 @@ Expected: `Build succeeded` with 0 errors.
 - [ ] **Step 7: Commit**
 
 ```bash
-git add backend/
-git commit -m "Add backend solution skeleton (Core/Models/Api + test projects)"
+git add global.json backend/
+git commit -m "Add backend solution skeleton (Core/Models/Api + test projects) and pin SDK via global.json"
 ```
 
 ---

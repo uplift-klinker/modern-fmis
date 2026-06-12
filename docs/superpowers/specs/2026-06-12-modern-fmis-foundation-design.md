@@ -34,6 +34,7 @@
 | Concern | Choice | Reasoning |
 |---|---|---|
 | Backend | ASP.NET Core, REST via minimal APIs | .NET-centric org; minimal APIs keep slices lightweight |
+| .NET runtime | Latest **LTS** (.NET 10), pinned via repo-root `global.json` | Predictable, supported runtime; pin keeps all environments on the same SDK |
 | ORM | EF Core + migrations | Standard .NET data access; code-first migrations |
 | Database | PostgreSQL + PostGIS (Azure-managed) | A "field" is a real land parcel; rate data is inherently spatial. PostGIS is the gold standard for geometry/raster and pays off in later phases. Azure offers a managed offering. |
 | Frontend | React + TypeScript (Vite, pnpm) | Richest geospatial-mapping and data-viz ecosystem (central to a farm app later); largest talent pool |
