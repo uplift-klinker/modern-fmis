@@ -4,13 +4,13 @@
 
 **Goal:** Build a working, authenticated ASP.NET Core API for managing `Client` records end-to-end (Create / List / Get-by-id), establishing the modular-monolith + vertical-slice + in-house-bus + TDD patterns that every later phase copies.
 
-**Architecture:** Modular monolith with vertical slices. `Fmis.Api` (HTTP) → `Fmis.Core` (vertical slices + EF Core) and `Fmis.Models` (external DTOs). Core knows nothing about HTTP or external DTOs; the Api translates between them. Slices are invoked through an in-house command/query **bus** resolved from DI — handlers are never constructed directly. Persistence (EF Core / Npgsql) lives inside Core; handlers depend on `FmisDbContext` directly (no repository abstraction, no mocking frameworks). Authentication only (Auth0 JWT bearer) — no authorization rules.
+**Architecture:** Modular monolith with vertical slices. `Fmis.Api` (HTTP) → `Fmis.Core` (vertical slices + EF Core) and `Fmis.Models` (external DTOs). Core knows nothing about HTTP or external DTOs; the Api translates between them. Slices are invoked through an in-house command/query **bus** resolved from DI — handlers are auto-discovered by reflection and never constructed directly. The command bus **validates each command** (FluentValidation) before dispatch. Persistence (EF Core / Npgsql) lives inside Core; handlers depend on `FmisDbContext` directly (no repository abstraction, no mocking frameworks). Authentication only (Auth0 JWT bearer) — no authorization rules.
 
-**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core minimal APIs, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, `Testcontainers.PostgreSql`, built-in `Microsoft.AspNetCore.OpenApi`.
+**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core minimal APIs, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), FluentValidation, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, built-in `Microsoft.AspNetCore.OpenApi`.
 
-**Conventions (from `docs/conventions/`):** New commits only — never amend or force-push. `*Entity` for EF entities, `*Model` for external DTOs, per-operation `*Result` types, generic `ListResult<T>` / `ListResultModel<T>`. In-house command/query bus — no MediatR, no direct handler construction. No mocking frameworks. Tests exercise slices through the bus resolved from a real DI container. One test project per production project, plus a no-tests `Fmis.TestSupport`.
+**Conventions (from `docs/conventions/`):** New commits only — never amend or force-push. `*Entity` for EF entities, `*Model` for external DTOs, per-operation `*Result` types, generic `ListResult<T>` / `ListResultModel<T>`. In-house command/query bus — no MediatR, reflection-based handler discovery, no direct handler construction. No mocking frameworks. Tests exercise slices through the bus resolved from a real DI container. One test project per production project, plus a no-tests `Fmis.TestSupport`.
 
-**Out of scope (later plans):** React frontend, Zod, Auth0 login UI, Playwright (Plan 2). Pulumi stacks, CI/CD, Azure deploy (Plan 3). PostGIS/spatial columns, the Ingestion project, and `IEventBus`/domain events (later phases). The DB image is PostGIS-capable but no spatial features are used here.
+**Out of scope (later plans):** React frontend, Zod, Auth0 login UI, Playwright (Plan 2). Pulumi stacks, CI/CD, Azure deploy (Plan 3). PostGIS/spatial columns, the Ingestion project, `IEventBus`/domain events, and a Testcontainers-backed test database (added with the first test needing real Postgres — the PostGIS/Field phase). The DB image is PostGIS-capable but no spatial features are used here.
 
 ---
 
@@ -31,7 +31,7 @@ backend/
 │  │  │  └─ Messaging/
 │  │  │     ├─ ICommand.cs  ICommandHandler.cs  ICommandBus.cs  CommandBus.cs
 │  │  │     ├─ IQuery.cs    IQueryHandler.cs    IQueryBus.cs    QueryBus.cs
-│  │  │     └─ MessagingServiceCollectionExtensions.cs
+│  │  │     └─ MessagingServiceCollectionExtensions.cs   (reflection discovery)
 │  │  ├─ Migrations/                          EF migrations (generated)
 │  │  └─ Clients/
 │  │     ├─ ClientEntity.cs                   entity
@@ -39,6 +39,7 @@ backend/
 │  │     ├─ CreateClient/
 │  │     │  ├─ CreateClientCommand.cs         : ICommand<CreateClientResult>
 │  │     │  ├─ CreateClientResult.cs
+│  │     │  ├─ CreateClientCommandValidator.cs : AbstractValidator<CreateClientCommand>
 │  │     │  └─ CreateClientHandler.cs         : ICommandHandler<...>
 │  │     ├─ ListClients/
 │  │     │  ├─ ListClientsQuery.cs            : IQuery<ListResult<ListClientsResult>>
@@ -60,12 +61,13 @@ backend/
 │     ├─ Program.cs                           DI, auth, ProblemDetails, OpenAPI, endpoints
 │     ├─ appsettings.json
 │     ├─ Dockerfile
+│     ├─ Common/
+│     │  └─ ValidationExceptionHandler.cs     ValidationException → 400
 │     └─ Clients/
 │        └─ ClientEndpoints.cs                injects ICommandBus/IQueryBus
 └─ tests/
    ├─ Fmis.TestSupport/
    │  ├─ Fmis.TestSupport.csproj
-   │  ├─ TestDb.cs                            raw-context factory: InMemory + Testcontainers
    │  └─ TestServices.cs                      DI container factory (InMemory) for bus tests
    ├─ Fmis.Core.Tests/
    │  ├─ Fmis.Core.Tests.csproj
@@ -73,8 +75,7 @@ backend/
    │  └─ Clients/
    │     ├─ CreateClientHandlerTests.cs
    │     ├─ ListClientsHandlerTests.cs
-   │     ├─ GetClientHandlerTests.cs
-   │     └─ SchemaTests.cs
+   │     └─ GetClientHandlerTests.cs
    └─ Fmis.Api.Tests/
       ├─ Fmis.Api.Tests.csproj
       ├─ TestAuthHandler.cs
@@ -157,19 +158,20 @@ dotnet add tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj reference src/Fmis.Api/Fmi
 - [ ] **Step 5: Add NuGet packages**
 
 ```bash
-# Core: EF Core + Npgsql + design-time + DI abstractions (for the bus + registrations)
+# Core: EF Core + Npgsql + design-time + DI abstractions + FluentValidation
 dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore
 dotnet add src/Fmis.Core/Fmis.Core.csproj package Npgsql.EntityFrameworkCore.PostgreSQL
 dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.EntityFrameworkCore.Design
 dotnet add src/Fmis.Core/Fmis.Core.csproj package Microsoft.Extensions.DependencyInjection.Abstractions
+dotnet add src/Fmis.Core/Fmis.Core.csproj package FluentValidation
+dotnet add src/Fmis.Core/Fmis.Core.csproj package FluentValidation.DependencyInjectionExtensions
 
 # Api: JWT bearer + OpenAPI
 dotnet add src/Fmis.Api/Fmis.Api.csproj package Microsoft.AspNetCore.Authentication.JwtBearer
 dotnet add src/Fmis.Api/Fmis.Api.csproj package Microsoft.AspNetCore.OpenApi
 
-# TestSupport: InMemory provider + Testcontainers + DI (for TestServices container)
+# TestSupport: InMemory provider + DI (for the TestServices container)
 dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Microsoft.EntityFrameworkCore.InMemory
-dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Testcontainers.PostgreSql
 dotnet add tests/Fmis.TestSupport/Fmis.TestSupport.csproj package Microsoft.Extensions.DependencyInjection
 
 # Api.Tests: Mvc.Testing
@@ -190,7 +192,7 @@ git commit -m "Add backend solution skeleton and pin SDK via global.json"
 
 ---
 
-## Task 2: In-house command/query bus
+## Task 2: In-house command/query bus (with discovery + validation)
 
 **Files:**
 - Create: `backend/src/Fmis.Core/Common/Messaging/ICommand.cs`, `ICommandHandler.cs`, `ICommandBus.cs`, `CommandBus.cs`
@@ -199,13 +201,14 @@ git commit -m "Add backend solution skeleton and pin SDK via global.json"
 - Create: `backend/src/Fmis.Core/Common/ListResult.cs`
 - Test: `backend/tests/Fmis.Core.Tests/Common/CommandBusTests.cs`
 
-The bus resolves a handler from DI by the message's runtime type and dispatches. No MediatR. The query side mirrors the command side. `IEventBus` is intentionally omitted until the first domain event exists.
+The bus resolves a handler from DI by the message's runtime type and dispatches. `AddMessaging(params Assembly[])` registers the buses and **discovers/registers every `ICommandHandler<,>` and `IQueryHandler<,>` in the given assemblies by reflection** — no per-handler registration. The command bus also resolves an optional `IValidator<TCommand>` and validates before dispatch. `IEventBus` is intentionally omitted until the first domain event exists.
 
-- [ ] **Step 1: Write the failing bus test**
+- [ ] **Step 1: Write the failing bus tests (dispatch + validation)**
 
 `backend/tests/Fmis.Core.Tests/Common/CommandBusTests.cs`:
 
 ```csharp
+using FluentValidation;
 using Fmis.Core.Common.Messaging;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -221,6 +224,11 @@ public class CommandBusTests
             => Task.FromResult($"pong:{command.Text}");
     }
 
+    private class PingCommandValidator : AbstractValidator<PingCommand>
+    {
+        public PingCommandValidator() => RuleFor(c => c.Text).NotEmpty();
+    }
+
     [Fact]
     public async Task Resolves_and_invokes_the_registered_handler_via_DI()
     {
@@ -234,10 +242,25 @@ public class CommandBusTests
 
         Assert.Equal("pong:hi", result);
     }
+
+    [Fact]
+    public async Task Validates_the_command_and_throws_when_invalid()
+    {
+        var services = new ServiceCollection();
+        services.AddMessaging();
+        services.AddScoped<ICommandHandler<PingCommand, string>, PingHandler>();
+        services.AddScoped<IValidator<PingCommand>, PingCommandValidator>();
+        await using var provider = services.BuildServiceProvider();
+
+        var bus = provider.GetRequiredService<ICommandBus>();
+
+        await Assert.ThrowsAsync<ValidationException>(
+            () => bus.ExecuteAsync(new PingCommand(""), CancellationToken.None));
+    }
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~CommandBusTests"`
 Expected: FAIL — messaging types do not exist (compile error).
@@ -275,27 +298,44 @@ public interface ICommandBus
 }
 ```
 
-- [ ] **Step 4: Create the CommandBus**
+- [ ] **Step 4: Create the CommandBus (with validation)**
 
 `backend/src/Fmis.Core/Common/Messaging/CommandBus.cs`:
 
 ```csharp
+using FluentValidation;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.Core.Common.Messaging;
 
 public class CommandBus(IServiceProvider provider) : ICommandBus
 {
-    public Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)
+    public async Task<TResult> ExecuteAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)
     {
+        await ValidateAsync(command, cancellationToken);
+
         var handlerType = typeof(ICommandHandler<,>).MakeGenericType(command.GetType(), typeof(TResult));
         dynamic handler = provider.GetRequiredService(handlerType);
-        return handler.HandleAsync((dynamic)command, cancellationToken);
+        return await handler.HandleAsync((dynamic)command, cancellationToken);
+    }
+
+    private async Task ValidateAsync<TResult>(ICommand<TResult> command, CancellationToken cancellationToken)
+    {
+        var validatorType = typeof(IValidator<>).MakeGenericType(command.GetType());
+        if (provider.GetService(validatorType) is IValidator validator)
+        {
+            var context = new ValidationContext<object>(command);
+            var result = await validator.ValidateAsync(context, cancellationToken);
+            if (!result.IsValid)
+            {
+                throw new ValidationException(result.Errors);
+            }
+        }
     }
 }
 ```
 
-- [ ] **Step 5: Create the query-side interfaces and bus (mirror of the command side)**
+- [ ] **Step 5: Create the query-side interfaces and bus (mirror of the command side, no validation)**
 
 `backend/src/Fmis.Core/Common/Messaging/IQuery.cs`:
 
@@ -346,25 +386,54 @@ public class QueryBus(IServiceProvider provider) : IQueryBus
 }
 ```
 
-- [ ] **Step 6: Create the messaging DI extension**
+- [ ] **Step 6: Create the messaging DI extension with reflection discovery**
 
 `backend/src/Fmis.Core/Common/Messaging/MessagingServiceCollectionExtensions.cs`:
 
 ```csharp
+using System.Reflection;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.Core.Common.Messaging;
 
 public static class MessagingServiceCollectionExtensions
 {
-    public static IServiceCollection AddMessaging(this IServiceCollection services)
+    /// <summary>
+    /// Registers the command/query buses and auto-registers every ICommandHandler&lt;,&gt; and
+    /// IQueryHandler&lt;,&gt; implementation found in the supplied assemblies.
+    /// </summary>
+    public static IServiceCollection AddMessaging(this IServiceCollection services, params Assembly[] assemblies)
     {
         services.AddScoped<ICommandBus, CommandBus>();
         services.AddScoped<IQueryBus, QueryBus>();
+
+        foreach (var assembly in assemblies)
+        {
+            RegisterImplementations(services, assembly, typeof(ICommandHandler<,>));
+            RegisterImplementations(services, assembly, typeof(IQueryHandler<,>));
+        }
+
         return services;
+    }
+
+    private static void RegisterImplementations(IServiceCollection services, Assembly assembly, Type openHandlerInterface)
+    {
+        var types = assembly.GetTypes().Where(t => t is { IsAbstract: false, IsInterface: false });
+        foreach (var type in types)
+        {
+            var handlerInterfaces = type.GetInterfaces()
+                .Where(i => i.IsGenericType && i.GetGenericTypeDefinition() == openHandlerInterface);
+
+            foreach (var handlerInterface in handlerInterfaces)
+            {
+                services.AddScoped(handlerInterface, type);
+            }
+        }
     }
 }
 ```
+
+> Called with no assemblies (as in the bus unit test), it registers only the buses, so tests can register their own handlers explicitly. Called with the Core assembly (Task 3), it discovers all real handlers.
 
 - [ ] **Step 7: Create the generic Core list result**
 
@@ -376,16 +445,16 @@ namespace Fmis.Core.Common;
 public record ListResult<TItem>(IReadOnlyList<TItem> Items, int TotalCount);
 ```
 
-- [ ] **Step 8: Run the test to verify it passes**
+- [ ] **Step 8: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~CommandBusTests"`
-Expected: PASS.
+Expected: PASS (2 tests).
 
 - [ ] **Step 9: Commit**
 
 ```bash
 git add backend/src/Fmis.Core/Common/ backend/tests/Fmis.Core.Tests/Common/
-git commit -m "Add in-house command/query bus and generic ListResult"
+git commit -m "Add in-house command/query bus with discovery and command validation"
 ```
 
 ---
@@ -484,14 +553,15 @@ public class FmisDbContextFactory : IDesignTimeDbContextFactory<FmisDbContext>
 }
 ```
 
-- [ ] **Step 5: Create the Core DI extension**
+- [ ] **Step 5: Create the Core DI extension (discovery + validators)**
 
-`AddFmisCoreHandlers` is the single composition root for Core services (the bus + every handler). The Api calls `AddFmisCore` (DbContext + handlers); tests call `AddFmisCoreHandlers` with their own DbContext. Handlers are appended here as their slices are built.
+`AddFmisCoreHandlers` is the single composition root for Core services. It discovers handlers and validators by scanning the Core assembly — handlers are **never** registered one-by-one. The Api calls `AddFmisCore` (DbContext + handlers); tests call `AddFmisCoreHandlers` with their own DbContext.
 
 `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`:
 
 ```csharp
 using Fmis.Core.Common.Messaging;
+using FluentValidation;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -507,8 +577,9 @@ public static class CoreServiceCollectionExtensions
 
     public static IServiceCollection AddFmisCoreHandlers(this IServiceCollection services)
     {
-        services.AddMessaging();
-        // Feature handlers are registered here as slices are added (Tasks 6–8).
+        var coreAssembly = typeof(CoreServiceCollectionExtensions).Assembly;
+        services.AddMessaging(coreAssembly);                  // buses + handler discovery
+        services.AddValidatorsFromAssembly(coreAssembly);     // FluentValidation validators
         return services;
     }
 }
@@ -523,76 +594,19 @@ Expected: `Build succeeded`.
 
 ```bash
 git add backend/src/Fmis.Core/
-git commit -m "Add ClientEntity, FmisDbContext, and Core DI wiring"
+git commit -m "Add ClientEntity, FmisDbContext, and Core DI wiring with discovery"
 ```
 
 ---
 
-## Task 4: TestSupport factories (raw context + DI container)
+## Task 4: TestServices DI container factory
 
 **Files:**
-- Create: `backend/tests/Fmis.TestSupport/TestDb.cs`
 - Create: `backend/tests/Fmis.TestSupport/TestServices.cs`
-- Test: `backend/tests/Fmis.Core.Tests/Clients/CreateClientHandlerTests.cs` *(temporary round-trip; replaced in Task 6)*
 
-`TestDb` gives a raw `FmisDbContext` (for persistence/schema tests). `TestServices` gives a real DI container with an InMemory database (for bus-driven slice tests — the same composition the Api uses). Neither uses a mocking framework.
+`TestServices` builds the same Core composition the Api uses (buses, discovered handlers, validators), backed by a unique InMemory database. Tests resolve `ICommandBus`/`IQueryBus` from a scope and execute messages — never constructing handlers. (A Testcontainers-backed variant is added later, when a test first needs real Postgres.) No build-only test here; the factory is exercised by the real slice tests starting in Task 6.
 
-- [ ] **Step 1: Write the raw-context factory**
-
-`backend/tests/Fmis.TestSupport/TestDb.cs`:
-
-```csharp
-using Fmis.Core;
-using Microsoft.EntityFrameworkCore;
-using Testcontainers.PostgreSql;
-
-namespace Fmis.TestSupport;
-
-/// <summary>
-/// Factory for a raw <see cref="FmisDbContext"/>. Use <see cref="InMemory"/> for fast tests,
-/// <see cref="ContainerAsync"/> when a real Postgres/PostGIS database is required. No mocking.
-/// </summary>
-public static class TestDb
-{
-    public static FmisDbContext InMemory()
-    {
-        var options = new DbContextOptionsBuilder<FmisDbContext>()
-            .UseInMemoryDatabase($"fmis-test-{Guid.NewGuid()}")
-            .Options;
-        var context = new FmisDbContext(options);
-        context.Database.EnsureCreated();
-        return context;
-    }
-
-    public static async Task<ContainerDb> ContainerAsync()
-    {
-        var container = new PostgreSqlBuilder()
-            .WithImage("postgis/postgis:16-3.4")
-            .Build();
-        await container.StartAsync();
-
-        var options = new DbContextOptionsBuilder<FmisDbContext>()
-            .UseNpgsql(container.GetConnectionString())
-            .Options;
-        var context = new FmisDbContext(options);
-        await context.Database.MigrateAsync();
-        return new ContainerDb(container, context);
-    }
-}
-
-public sealed class ContainerDb(PostgreSqlContainer container, FmisDbContext context) : IAsyncDisposable
-{
-    public FmisDbContext Context { get; } = context;
-
-    public async ValueTask DisposeAsync()
-    {
-        await Context.DisposeAsync();
-        await container.DisposeAsync();
-    }
-}
-```
-
-- [ ] **Step 2: Write the DI container factory**
+- [ ] **Step 1: Write the DI container factory**
 
 `backend/tests/Fmis.TestSupport/TestServices.cs`:
 
@@ -621,53 +635,25 @@ public static class TestServices
 }
 ```
 
-- [ ] **Step 3: Write a temporary round-trip test to confirm the factories wire up**
+- [ ] **Step 2: Build to verify it compiles**
 
-`backend/tests/Fmis.Core.Tests/Clients/CreateClientHandlerTests.cs`:
+Run: `dotnet build backend/tests/Fmis.TestSupport/Fmis.TestSupport.csproj`
+Expected: `Build succeeded`.
 
-```csharp
-using Fmis.Core.Clients;
-using Fmis.TestSupport;
-
-namespace Fmis.Core.Tests.Clients;
-
-public class CreateClientHandlerTests
-{
-    [Fact]
-    public async Task TestDb_InMemory_round_trips_a_client()
-    {
-        await using var db = TestDb.InMemory();
-
-        db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Acme Farms" });
-        await db.SaveChangesAsync();
-
-        Assert.Single(db.Clients);
-    }
-}
-```
-
-> Task 6 replaces this file's contents with the real bus-driven `CreateClient` test.
-
-- [ ] **Step 4: Run the backend test suite**
-
-Run: `dotnet test backend/Fmis.sln`
-Expected: PASS (CommandBus test + round-trip test).
-
-- [ ] **Step 5: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
-git add backend/tests/Fmis.TestSupport/ backend/tests/Fmis.Core.Tests/Clients/
-git commit -m "Add TestDb and TestServices factories with round-trip test"
+git add backend/tests/Fmis.TestSupport/
+git commit -m "Add TestServices DI container factory (InMemory)"
 ```
 
 ---
 
-## Task 5: Local Postgres+PostGIS, initial migration, and container schema test
+## Task 5: Local Postgres+PostGIS and initial migration
 
 **Files:**
 - Create: `docker-compose.yml` (repo root)
 - Create: `backend/src/Fmis.Core/Migrations/*` (generated)
-- Test: `backend/tests/Fmis.Core.Tests/Clients/SchemaTests.cs`
 
 - [ ] **Step 1: Create `docker-compose.yml` with the database service**
 
@@ -710,59 +696,37 @@ dotnet ef migrations add InitialCreate \
 
 Expected: a `Migrations/` folder appears in `Fmis.Core` with `*_InitialCreate.cs` creating the `clients` table.
 
-- [ ] **Step 4: Write a failing test that the migration builds the schema on a real container**
+- [ ] **Step 4: Build to verify the generated migration compiles**
 
-`backend/tests/Fmis.Core.Tests/Clients/SchemaTests.cs`:
+Run: `dotnet build backend/src/Fmis.Core/Fmis.Core.csproj`
+Expected: `Build succeeded`. (The migration is applied for real at API startup in Task 15.)
 
-```csharp
-using Fmis.Core.Clients;
-using Fmis.TestSupport;
-
-namespace Fmis.Core.Tests.Clients;
-
-public class SchemaTests
-{
-    [Fact]
-    public async Task Migrations_create_clients_table_on_real_postgis()
-    {
-        await using var db = await TestDb.ContainerAsync();
-
-        db.Context.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Container Farm" });
-        await db.Context.SaveChangesAsync();
-
-        Assert.Single(db.Context.Clients);
-    }
-}
-```
-
-- [ ] **Step 5: Run the test to verify it passes (requires Docker running)**
-
-Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~SchemaTests"`
-Expected: PASS. (First run pulls the `postgis/postgis:16-3.4` image — may take a minute.)
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add docker-compose.yml backend/src/Fmis.Core/Migrations/
-git commit -m "Add docker-compose db, initial EF migration, container schema test"
+git commit -m "Add docker-compose db service and initial EF migration"
 ```
 
 ---
 
-## Task 6: CreateClient slice
+## Task 6: CreateClient slice (with validation)
 
 **Files:**
 - Create: `backend/src/Fmis.Core/Clients/CreateClient/CreateClientCommand.cs`
 - Create: `backend/src/Fmis.Core/Clients/CreateClient/CreateClientResult.cs`
+- Create: `backend/src/Fmis.Core/Clients/CreateClient/CreateClientCommandValidator.cs`
 - Create: `backend/src/Fmis.Core/Clients/CreateClient/CreateClientHandler.cs`
-- Modify: `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`
-- Test: `backend/tests/Fmis.Core.Tests/Clients/CreateClientHandlerTests.cs` (replace scaffolding)
+- Test: `backend/tests/Fmis.Core.Tests/Clients/CreateClientHandlerTests.cs`
 
-- [ ] **Step 1: Replace the scaffolding test with the real bus-driven test**
+Handlers and validators are auto-discovered (Task 3) — no registration step. A client requires a name **and** at least one contact method (email or phone).
+
+- [ ] **Step 1: Write the failing tests (success + both validation rules)**
 
 `backend/tests/Fmis.Core.Tests/Clients/CreateClientHandlerTests.cs`:
 
 ```csharp
+using FluentValidation;
 using Fmis.Core;
 using Fmis.Core.Clients.CreateClient;
 using Fmis.Core.Common.Messaging;
@@ -793,13 +757,49 @@ public class CreateClientHandlerTests
         var saved = Assert.Single(db.Clients);
         Assert.Equal(result.Id, saved.Id);
     }
+
+    [Fact]
+    public async Task Accepts_a_client_with_only_a_phone_number()
+    {
+        await using var provider = TestServices.CreateInMemory();
+        using var scope = provider.CreateScope();
+        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
+
+        var result = await bus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", null, "555-0100"),
+            CancellationToken.None);
+
+        Assert.NotEqual(Guid.Empty, result.Id);
+    }
+
+    [Fact]
+    public async Task Rejects_a_blank_name()
+    {
+        await using var provider = TestServices.CreateInMemory();
+        using var scope = provider.CreateScope();
+        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => bus.ExecuteAsync(
+            new CreateClientCommand("", "ops@acme.example", null), CancellationToken.None));
+    }
+
+    [Fact]
+    public async Task Rejects_a_client_with_no_email_or_phone()
+    {
+        await using var provider = TestServices.CreateInMemory();
+        using var scope = provider.CreateScope();
+        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
+
+        await Assert.ThrowsAsync<ValidationException>(() => bus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", null, null), CancellationToken.None));
+    }
 }
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [ ] **Step 2: Run the tests to verify they fail**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~CreateClientHandlerTests"`
-Expected: FAIL — `CreateClientCommand` / `CreateClientResult` do not exist (compile error). (`GetRequiredService<ICommandBus>` would also throw at runtime until the handler is registered, but the compile error comes first.)
+Expected: FAIL — `CreateClientCommand` / `CreateClientResult` do not exist (compile error).
 
 - [ ] **Step 3: Create the command**
 
@@ -824,7 +824,34 @@ namespace Fmis.Core.Clients.CreateClient;
 public record CreateClientResult(Guid Id, string Name, string? Email, string? PhoneNumber);
 ```
 
-- [ ] **Step 5: Create the handler**
+- [ ] **Step 5: Create the validator**
+
+`backend/src/Fmis.Core/Clients/CreateClient/CreateClientCommandValidator.cs`:
+
+```csharp
+using FluentValidation;
+
+namespace Fmis.Core.Clients.CreateClient;
+
+public class CreateClientCommandValidator : AbstractValidator<CreateClientCommand>
+{
+    public CreateClientCommandValidator()
+    {
+        RuleFor(c => c.Name)
+            .NotEmpty().WithMessage("Name is required.");
+
+        RuleFor(c => c)
+            .Must(HasContactMethod)
+            .WithName("contact")
+            .WithMessage("Either an email or a phone number is required.");
+    }
+
+    private static bool HasContactMethod(CreateClientCommand command)
+        => !string.IsNullOrWhiteSpace(command.Email) || !string.IsNullOrWhiteSpace(command.PhoneNumber);
+}
+```
+
+- [ ] **Step 6: Create the handler**
 
 `backend/src/Fmis.Core/Clients/CreateClient/CreateClientHandler.cs`:
 
@@ -855,30 +882,16 @@ public class CreateClientHandler(FmisDbContext db)
 }
 ```
 
-- [ ] **Step 6: Register the handler**
-
-In `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`, add the using:
-
-```csharp
-using Fmis.Core.Clients.CreateClient;
-```
-
-and inside `AddFmisCoreHandlers`, after `services.AddMessaging();`:
-
-```csharp
-        services.AddScoped<ICommandHandler<CreateClientCommand, CreateClientResult>, CreateClientHandler>();
-```
-
-- [ ] **Step 7: Run the test to verify it passes**
+- [ ] **Step 7: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~CreateClientHandlerTests"`
-Expected: PASS.
+Expected: PASS (4 tests). The handler and validator are auto-discovered by `AddFmisCoreHandlers`.
 
 - [ ] **Step 8: Commit**
 
 ```bash
 git add backend/src/Fmis.Core/ backend/tests/Fmis.Core.Tests/
-git commit -m "Add CreateClient slice (command, result, handler, registration)"
+git commit -m "Add CreateClient slice with command validation"
 ```
 
 ---
@@ -889,10 +902,11 @@ git commit -m "Add CreateClient slice (command, result, handler, registration)"
 - Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsResult.cs`
 - Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsQuery.cs`
 - Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsHandler.cs`
-- Modify: `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`
 - Test: `backend/tests/Fmis.Core.Tests/Clients/ListClientsHandlerTests.cs`
 
 - [ ] **Step 1: Write the failing test**
+
+Tests seed entities directly through the DbContext (bypassing the command validator), then query through the bus.
 
 `backend/tests/Fmis.Core.Tests/Clients/ListClientsHandlerTests.cs`:
 
@@ -999,27 +1013,12 @@ public class ListClientsHandler(FmisDbContext db)
 }
 ```
 
-- [ ] **Step 6: Register the handler**
-
-In `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`, add:
-
-```csharp
-using Fmis.Core.Clients.ListClients;
-using Fmis.Core.Common;
-```
-
-and inside `AddFmisCoreHandlers`:
-
-```csharp
-        services.AddScoped<IQueryHandler<ListClientsQuery, ListResult<ListClientsResult>>, ListClientsHandler>();
-```
-
-- [ ] **Step 7: Run the test to verify it passes**
+- [ ] **Step 6: Run the test to verify it passes**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~ListClientsHandlerTests"`
 Expected: PASS (2 tests).
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add backend/src/Fmis.Core/ backend/tests/Fmis.Core.Tests/
@@ -1034,7 +1033,6 @@ git commit -m "Add ListClients slice with ListResult and total count"
 - Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientResult.cs`
 - Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientQuery.cs`
 - Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientHandler.cs`
-- Modify: `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`
 - Test: `backend/tests/Fmis.Core.Tests/Clients/GetClientHandlerTests.cs`
 
 - [ ] **Step 1: Write the failing test**
@@ -1138,26 +1136,12 @@ public class GetClientHandler(FmisDbContext db)
 }
 ```
 
-- [ ] **Step 6: Register the handler**
-
-In `backend/src/Fmis.Core/CoreServiceCollectionExtensions.cs`, add:
-
-```csharp
-using Fmis.Core.Clients.GetClient;
-```
-
-and inside `AddFmisCoreHandlers`:
-
-```csharp
-        services.AddScoped<IQueryHandler<GetClientQuery, GetClientResult?>, GetClientHandler>();
-```
-
-- [ ] **Step 7: Run the test to verify it passes**
+- [ ] **Step 6: Run the test to verify it passes**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~GetClientHandlerTests"`
 Expected: PASS (2 tests).
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add backend/src/Fmis.Core/ backend/tests/Fmis.Core.Tests/
@@ -1219,17 +1203,55 @@ git commit -m "Add Client request/response models and generic ListResultModel"
 
 ---
 
-## Task 10: Api host — DI, ProblemDetails, OpenAPI, authentication
+## Task 10: Api host — DI, ProblemDetails, OpenAPI, auth, validation mapping
 
 **Files:**
+- Create: `backend/src/Fmis.Api/Common/ValidationExceptionHandler.cs`
 - Modify: `backend/src/Fmis.Api/Program.cs` (replace template)
 - Create/replace: `backend/src/Fmis.Api/appsettings.json`
 
-- [ ] **Step 1: Replace `Program.cs`**
+- [ ] **Step 1: Create the validation exception handler**
+
+Maps the FluentValidation `ValidationException` thrown by the command bus into a 400 with a validation-problem body.
+
+`backend/src/Fmis.Api/Common/ValidationExceptionHandler.cs`:
+
+```csharp
+using FluentValidation;
+using Microsoft.AspNetCore.Diagnostics;
+
+namespace Fmis.Api.Common;
+
+public class ValidationExceptionHandler : IExceptionHandler
+{
+    public async ValueTask<bool> TryHandleAsync(
+        HttpContext httpContext, Exception exception, CancellationToken cancellationToken)
+    {
+        if (exception is not ValidationException validationException)
+        {
+            return false;
+        }
+
+        var errors = validationException.Errors
+            .GroupBy(e => e.PropertyName)
+            .ToDictionary(g => g.Key, g => g.Select(e => e.ErrorMessage).ToArray());
+
+        httpContext.Response.StatusCode = StatusCodes.Status400BadRequest;
+        await httpContext.Response.WriteAsJsonAsync(
+            new HttpValidationProblemDetails(errors) { Status = StatusCodes.Status400BadRequest },
+            cancellationToken);
+
+        return true;
+    }
+}
+```
+
+- [ ] **Step 2: Replace `Program.cs`**
 
 `backend/src/Fmis.Api/Program.cs`:
 
 ```csharp
+using Fmis.Api.Common;
 using Fmis.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
@@ -1239,6 +1261,7 @@ builder.Services.AddFmisCore(builder.Configuration.GetConnectionString("Fmis")
     ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
 
 builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
 builder.Services.AddOpenApi();
 
 // Authentication only — verify identity via Auth0 JWT. No authorization policies.
@@ -1269,7 +1292,7 @@ app.Run();
 public partial class Program;
 ```
 
-- [ ] **Step 2: Replace `appsettings.json`**
+- [ ] **Step 3: Replace `appsettings.json`**
 
 `backend/src/Fmis.Api/appsettings.json`:
 
@@ -1294,16 +1317,16 @@ public partial class Program;
 
 > `Auth0` values are blank locally; the real values come from the `auth` Pulumi stack (Plan 3). With no token presented, protected endpoints return 401 without contacting Auth0.
 
-- [ ] **Step 3: Build to verify it compiles**
+- [ ] **Step 4: Build to verify it compiles**
 
 Run: `dotnet build backend/src/Fmis.Api/Fmis.Api.csproj`
 Expected: `Build succeeded`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add backend/src/Fmis.Api/Program.cs backend/src/Fmis.Api/appsettings.json
-git commit -m "Configure Api host: Core DI, ProblemDetails, OpenAPI, JWT auth"
+git add backend/src/Fmis.Api/Program.cs backend/src/Fmis.Api/appsettings.json backend/src/Fmis.Api/Common/
+git commit -m "Configure Api host: Core DI, ProblemDetails, OpenAPI, JWT auth, validation mapping"
 ```
 
 ---
@@ -1314,7 +1337,7 @@ git commit -m "Configure Api host: Core DI, ProblemDetails, OpenAPI, JWT auth"
 - Create: `backend/src/Fmis.Api/Clients/ClientEndpoints.cs`
 - Modify: `backend/src/Fmis.Api/Program.cs` (map endpoints)
 
-Endpoints inject `ICommandBus`/`IQueryBus` (never handlers), translate `Models` ↔ Core messages, and map list results into `ListResultModel<ClientResponseModel>`. All endpoints require an authenticated user. Validation happens here (before Core). Behavior is covered by the integration tests in Task 13.
+Endpoints inject `ICommandBus`/`IQueryBus` (never handlers) and translate `Models` ↔ Core messages. Validation is handled by the command bus (Task 2) and surfaced as 400 by the exception handler (Task 10) — endpoints contain **no** manual validation. The list endpoint maps the Core `ListResult` into `ListResultModel<ClientResponseModel>`. All endpoints require an authenticated user. Behavior is covered by the integration tests in Task 13.
 
 - [ ] **Step 1: Create the endpoints**
 
@@ -1349,14 +1372,6 @@ public static class ClientEndpoints
         ICommandBus bus,
         CancellationToken cancellationToken)
     {
-        if (string.IsNullOrWhiteSpace(request.Name))
-        {
-            return Results.ValidationProblem(new Dictionary<string, string[]>
-            {
-                ["name"] = ["Name is required."],
-            });
-        }
-
         var result = await bus.ExecuteAsync(
             new CreateClientCommand(request.Name, request.Email, request.PhoneNumber),
             cancellationToken);
@@ -1526,7 +1541,7 @@ git commit -m "Add test auth scheme and WebApplicationFactory for Api tests"
 **Files:**
 - Create: `backend/tests/Fmis.Api.Tests/Clients/ClientEndpointsTests.cs`
 
-These exercise the full HTTP pipeline (routing, auth, validation, bus, EF) via `Mvc.Testing` — authenticated success, 404, 400 validation, and the 401 unauthenticated path.
+These exercise the full HTTP pipeline (routing, auth, validation, bus, EF) via `Mvc.Testing` — authenticated success, 404, two 400 validation paths (blank name, no contact), and the 401 unauthenticated path.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1574,7 +1589,8 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     public async Task List_returns_created_clients_with_total_count()
     {
         var client = AuthenticatedClient();
-        await client.PostAsJsonAsync("/clients", new CreateClientRequestModel("Bedrock Ag", null, null));
+        await client.PostAsJsonAsync("/clients",
+            new CreateClientRequestModel("Bedrock Ag", "info@bedrock.example", null));
 
         var list = await client.GetFromJsonAsync<ListResultModel<ClientResponseModel>>("/clients");
 
@@ -1599,7 +1615,18 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
         var client = AuthenticatedClient();
 
         var response = await client.PostAsJsonAsync("/clients",
-            new CreateClientRequestModel("", null, null));
+            new CreateClientRequestModel("", "ops@acme.example", null));
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+    }
+
+    [Fact]
+    public async Task Create_without_email_or_phone_returns_400()
+    {
+        var client = AuthenticatedClient();
+
+        var response = await client.PostAsJsonAsync("/clients",
+            new CreateClientRequestModel("Acme Farms", null, null));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
@@ -1619,13 +1646,13 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
 - [ ] **Step 2: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj`
-Expected: PASS (5 tests). If the 401 test returns 404, confirm `RequireAuthorization()` is on the group and `UseAuthentication()/UseAuthorization()` are in `Program.cs`.
+Expected: PASS (6 tests). If the 401 test returns 404, confirm `RequireAuthorization()` is on the group and `UseAuthentication()/UseAuthorization()` are in `Program.cs`.
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add backend/tests/Fmis.Api.Tests/Clients/
-git commit -m "Add Client endpoint integration tests (success, 404, 400, 401)"
+git commit -m "Add Client endpoint integration tests (success, 404, 400s, 401)"
 ```
 
 ---
@@ -1670,7 +1697,7 @@ Expected: PASS. (If `/clients` is absent, confirm `MapOpenApi()` runs and endpoi
 - [ ] **Step 3: Run the entire backend suite**
 
 Run: `dotnet test backend/Fmis.sln`
-Expected: ALL PASS (bus test, Core handler tests, container schema test, Api integration incl. 401, OpenAPI test).
+Expected: ALL PASS (bus dispatch + validation, Core slices via the bus, Api integration incl. 401, OpenAPI smoke).
 
 - [ ] **Step 4: Commit**
 
@@ -1806,8 +1833,8 @@ git commit -m "Add backend Dockerfile and docker-compose service with startup mi
 
 ## Done criteria
 
-- `dotnet test backend/Fmis.sln` passes all tests (bus dispatch, Core slices via the bus, real-container schema test, Api integration incl. 401, OpenAPI smoke).
+- `dotnet test backend/Fmis.sln` passes all tests (bus dispatch + validation, Core slices via the bus, Api integration incl. 401 and both 400 validation paths, OpenAPI smoke).
 - `docker compose up --build` runs db + backend; unauthenticated `/clients` returns 401; `/openapi/v1.json` returns 200.
-- The Client slice exists end-to-end through Api → Models → bus → Core handler → EF Core → Postgres, with authentication enforced and no authorization rules.
-- Patterns established for Plan 2/3 to copy: vertical slice layout, in-house command/query bus, handler-via-DI (never constructed), `*Entity`/`*Model`/`*Result` naming, generic `ListResult`/`ListResultModel`, Core DI composition root, TestDb + TestServices, no-mocks testing, test auth scheme.
+- The Client slice exists end-to-end through Api → Models → bus (validate → dispatch) → Core handler → EF Core → Postgres, with authentication enforced and no authorization rules.
+- Patterns established for Plan 2/3 to copy: vertical slice layout, in-house command/query bus with reflection discovery + command validation, handler-via-DI (never constructed), `*Entity`/`*Model`/`*Result` naming, generic `ListResult`/`ListResultModel`, Core DI composition root, `TestServices` (no-mocks, bus-driven tests), test auth scheme.
 ```

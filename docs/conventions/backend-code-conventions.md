@@ -35,11 +35,15 @@ Slices are invoked through a thin in-house bus — **no MediatR** (it is now com
 
 - `ICommand<TResult>` + `ICommandHandler<TCommand, TResult>` + `ICommandBus.ExecuteAsync(command, ct)`.
 - `IQuery<TResult>` + `IQueryHandler<TQuery, TResult>` + `IQueryBus.QueryAsync(query, ct)`.
-- The bus resolves the closed handler type from `IServiceProvider` and dispatches. Handlers are registered in DI and depend on `FmisDbContext` directly.
+- The bus resolves the closed handler type from `IServiceProvider` and dispatches. Handlers depend on `FmisDbContext` directly.
+- **Handlers are auto-registered by reflection.** `AddMessaging(params Assembly[])` discovers every `ICommandHandler<,>` / `IQueryHandler<,>` implementation in the given assemblies and registers it — never register handlers one-by-one.
+- **The command bus validates first.** Before dispatch, `CommandBus` resolves an optional `IValidator<TCommand>` (FluentValidation) and throws `ValidationException` on failure; the Api maps that to a 400 via an `IExceptionHandler`. Validators live with their slice and are registered by assembly scan. Queries are not validated.
 - `IEventBus` (publish to many `IEventHandler<TEvent>`) follows the same shape and is added **when the first domain event exists** — not before.
 
 **Handlers are never constructed directly in production or test code.** Callers depend on `ICommandBus` / `IQueryBus`, never on a concrete handler.
 
+**Validation library:** FluentValidation (free/open-source). Cross-field rules (e.g. "email or phone required") belong in the slice's validator.
+
 ## Testing: exercise through DI, not `new`
 
-Handler/slice tests resolve `ICommandBus` / `IQueryBus` from a **real DI container** (the same composition the Api uses) and execute messages through them. Never `new` a handler in a test. The shared `TestServices.CreateInMemory()` builds that container with an InMemory `FmisDbContext`. (Persistence/schema tests may use a raw `FmisDbContext` from the `TestDb` factory.) No mocking frameworks — use real implementations or the InMemory provider.
+Handler/slice tests resolve `ICommandBus` / `IQueryBus` from a **real DI container** (the same composition the Api uses) and execute messages through them. Never `new` a handler in a test. The shared `TestServices.CreateInMemory()` builds that container with an InMemory `FmisDbContext`. A Testcontainers-backed variant is added to `TestServices` when a test first needs real Postgres (e.g. PostGIS/spatial work). No mocking frameworks — use real implementations or the InMemory provider.
