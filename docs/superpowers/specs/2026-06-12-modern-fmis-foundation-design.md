@@ -104,6 +104,8 @@ modern-fmis/
 - `Core/{entity}/{feature}`: each feature slice (e.g., `Core/Clients/CreateClient`) contains its request, handler, and feature-specific types.
 - Persistence (EF Core / Npgsql) lives **inside Core** (no separate Infrastructure project — matches the lean dependency graph). The accepted tradeoff: Core takes an EF Core/Npgsql dependency and is not a "pure" domain layer.
 - **Feature handlers depend on the `DbContext` directly** — no repository abstraction. With no mocking frameworks and a real `DbContext` (InMemory or Testcontainers) in every test, a repository interface would add ceremony without value.
+- **Slices are invoked through an in-house command/query bus** (`ICommandBus`/`IQueryBus` in `Core/Common/Messaging`), not by constructing handlers directly. The bus resolves the handler from DI by message type — no MediatR (now commercially licensed; the dispatch is small enough to own). `IEventBus` follows the same shape and is added when the first domain event exists.
+- **Naming & shape conventions** (entities `*Entity`, external models `*Model`, per-operation `*Result`, generic `ListResult<T>`/`ListResultModel<T>`, handlers-via-DI, no-`new` in tests) are the repository rule in [`docs/conventions/backend-code-conventions.md`](../../conventions/backend-code-conventions.md).
 
 ### Translation responsibilities
 
