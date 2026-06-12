@@ -6,7 +6,7 @@
 
 **Architecture:** Modular monolith with vertical slices. `Fmis.Api` (HTTP) → `Fmis.Core` (vertical slices + EF Core) and `Fmis.Models` (external DTOs). Core knows nothing about HTTP or external DTOs; the Api translates between them. Slices are invoked through an in-house command/query **bus** resolved from DI — handlers are auto-discovered by reflection and never constructed directly. The command bus **validates each command** (FluentValidation) before dispatch. Persistence (EF Core / Npgsql) lives inside Core; handlers depend on `FmisDbContext` directly (no repository abstraction, no mocking frameworks). Authentication only (Auth0 JWT bearer) — no authorization rules.
 
-**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core minimal APIs, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), FluentValidation, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, built-in `Microsoft.AspNetCore.OpenApi`.
+**Tech Stack:** .NET 10 — the current LTS (`net10.0`), pinned via a repo-root `global.json` — ASP.NET Core MVC controllers, EF Core 10 + `Npgsql.EntityFrameworkCore.PostgreSQL`, PostgreSQL+PostGIS (via Docker), FluentValidation, xUnit, `Microsoft.AspNetCore.Mvc.Testing`, EF Core InMemory provider, built-in `Microsoft.AspNetCore.OpenApi`.
 
 **Conventions (from `docs/conventions/`):** New commits only — never amend or force-push. `*Entity` for EF entities, `*Model` for external DTOs, per-operation `*Result` types, generic `ListResult<T>` / `ListResultModel<T>`. In-house command/query bus — no MediatR, reflection-based handler discovery, no direct handler construction. No mocking frameworks. Tests exercise slices through the bus resolved from a real DI container. One test project per production project, plus a no-tests `Fmis.TestSupport`.
 
@@ -66,7 +66,7 @@ backend/
 │     ├─ Common/
 │     │  └─ ValidationExceptionHandler.cs     ValidationException → 400
 │     └─ Clients/
-│        └─ ClientEndpoints.cs                injects ICommandBus/IQueryBus
+│        └─ ClientsController.cs              [ApiController]; injects ICommandBus/IQueryBus
 └─ tests/
    ├─ Fmis.TestSupport/
    │  ├─ Fmis.TestSupport.csproj
@@ -1255,6 +1255,7 @@ Keep `Program.cs` thin: group all service registration into cohesive extension m
 using Fmis.Api.Common;
 using Fmis.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fmis.Api.Configuration;
 
@@ -1264,9 +1265,19 @@ public static class ApiServiceCollectionExtensions
     {
         services.AddFmisCore(configuration.GetConnectionString("Fmis")
             ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
+        services.AddApiControllers();
         services.AddApiErrorHandling();
         services.AddApiDocumentation();
         services.AddApiAuthentication(configuration);
+        return services;
+    }
+
+    public static IServiceCollection AddApiControllers(this IServiceCollection services)
+    {
+        // Validation is centralized in the command bus (FluentValidation); turn off MVC's
+        // automatic model-state 400 so requests always reach the action and the bus validator.
+        services.AddControllers()
+            .ConfigureApiBehaviorOptions(options => options.SuppressModelStateInvalidFilter = true);
         return services;
     }
 
@@ -1300,7 +1311,7 @@ public static class ApiServiceCollectionExtensions
 
 - [ ] **Step 3: Create the application-pipeline extensions**
 
-Group middleware, endpoint mapping, and the startup migration into pipeline extensions. `MigrateDatabase` guards on `IsRelational()` so it is a no-op under the InMemory provider the Api tests use (InMemory can't run migrations). `MapApiEndpoints` is the single place feature endpoint groups are wired (filled in Task 11).
+Group middleware, endpoint mapping, and the startup migration into pipeline extensions. `MigrateDatabase` guards on `IsRelational()` so it is a no-op under the InMemory provider the Api tests use (InMemory can't run migrations). `MapApiEndpoints` maps the MVC controllers, which are auto-discovered (no per-feature wiring needed).
 
 `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs`:
 
@@ -1324,8 +1335,8 @@ public static class ApiApplicationBuilderExtensions
 
     public static WebApplication MapApiEndpoints(this WebApplication app)
     {
-        // Feature endpoint groups are mapped here (added per feature):
-        // app.MapClientEndpoints();
+        // MVC controllers are discovered automatically via [ApiController]/[Route] attributes.
+        app.MapControllers();
         return app;
     }
 
@@ -1404,17 +1415,16 @@ git commit -m "Configure Api host via thin Program.cs and service/pipeline exten
 
 ---
 
-## Task 11: Client endpoints (HTTP ↔ Models ↔ bus)
+## Task 11: ClientsController (HTTP ↔ Models ↔ bus)
 
 **Files:**
-- Create: `backend/src/Fmis.Api/Clients/ClientEndpoints.cs`
-- Modify: `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs` (wire endpoints into `MapApiEndpoints`)
+- Create: `backend/src/Fmis.Api/Clients/ClientsController.cs`
 
-Endpoints inject `ICommandBus`/`IQueryBus` (never handlers) and translate `Models` ↔ Core messages. Validation is handled by the command bus (Task 2) and surfaced as 400 by the exception handler (Task 10) — endpoints contain **no** manual validation. The list endpoint maps the Core `ListResult` into `ListResultModel<ClientResponseModel>`. All endpoints require an authenticated user. Behavior is covered by the integration tests in Task 13.
+An MVC controller injects `ICommandBus`/`IQueryBus` (never handlers) and translates `Models` ↔ Core messages. It's auto-discovered by `MapControllers` (Task 10) — no wiring step. Validation is handled by the command bus (Task 2) and surfaced as 400 by the exception handler (Task 10) — the controller contains **no** manual validation. `[Authorize]` enforces authentication (an authenticated user); there are no authorization policies. Behavior is covered by the integration tests in Task 13.
 
-- [ ] **Step 1: Create the endpoints**
+- [ ] **Step 1: Create the controller**
 
-`backend/src/Fmis.Api/Clients/ClientEndpoints.cs`:
+`backend/src/Fmis.Api/Clients/ClientsController.cs`:
 
 ```csharp
 using Fmis.Core.Clients.CreateClient;
@@ -1423,94 +1433,62 @@ using Fmis.Core.Clients.ListClients;
 using Fmis.Core.Common.Messaging;
 using Fmis.Models.Clients;
 using Fmis.Models.Common;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Fmis.Api.Clients;
 
-public static class ClientEndpoints
+[ApiController]
+[Route("clients")]
+[Authorize] // authentication only — any authenticated user; no policies
+public class ClientsController(ICommandBus commandBus, IQueryBus queryBus) : ControllerBase
 {
-    public static IEndpointRouteBuilder MapClientEndpoints(this IEndpointRouteBuilder routes)
+    [HttpPost]
+    public async Task<ActionResult<ClientResponseModel>> Create(
+        [FromBody] CreateClientRequestModel request, CancellationToken cancellationToken)
     {
-        // RequireAuthorization() with no policy enforces authentication only (an authenticated user).
-        var group = routes.MapGroup("/clients").RequireAuthorization();
-
-        group.MapPost("/", CreateClient);
-        group.MapGet("/", ListClients);
-        group.MapGet("/{id:guid}", GetClient);
-
-        return routes;
-    }
-
-    private static async Task<IResult> CreateClient(
-        CreateClientRequestModel request,
-        ICommandBus bus,
-        CancellationToken cancellationToken)
-    {
-        var result = await bus.ExecuteAsync(
+        var result = await commandBus.ExecuteAsync(
             new CreateClientCommand(request.Name, request.Email, request.PhoneNumber),
             cancellationToken);
 
         var model = new ClientResponseModel(result.Id, result.Name, result.Email, result.PhoneNumber);
-        return Results.Created($"/clients/{model.Id}", model);
+        return CreatedAtAction(nameof(GetById), new { id = model.Id }, model);
     }
 
-    private static async Task<IResult> ListClients(
-        IQueryBus bus,
-        CancellationToken cancellationToken)
+    [HttpGet]
+    public async Task<ActionResult<ListResultModel<ClientResponseModel>>> List(CancellationToken cancellationToken)
     {
-        var result = await bus.QueryAsync(new ListClientsQuery(), cancellationToken);
+        var result = await queryBus.QueryAsync(new ListClientsQuery(), cancellationToken);
 
         var items = result.Items
             .Select(i => new ClientResponseModel(i.Id, i.Name, i.Email, i.PhoneNumber))
             .ToList();
 
-        return Results.Ok(new ListResultModel<ClientResponseModel>(items, result.TotalCount));
+        return new ListResultModel<ClientResponseModel>(items, result.TotalCount);
     }
 
-    private static async Task<IResult> GetClient(
-        Guid id,
-        IQueryBus bus,
-        CancellationToken cancellationToken)
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<ClientResponseModel>> GetById(Guid id, CancellationToken cancellationToken)
     {
-        var result = await bus.QueryAsync(new GetClientQuery(id), cancellationToken);
+        var result = await queryBus.QueryAsync(new GetClientQuery(id), cancellationToken);
 
         return result is null
-            ? Results.NotFound()
-            : Results.Ok(new ClientResponseModel(result.Id, result.Name, result.Email, result.PhoneNumber));
+            ? NotFound()
+            : new ClientResponseModel(result.Id, result.Name, result.Email, result.PhoneNumber);
     }
 }
 ```
 
-- [ ] **Step 2: Wire the endpoints into `MapApiEndpoints`**
-
-In `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs`, add the using at the top:
-
-```csharp
-using Fmis.Api.Clients;
-```
-
-and in the `MapApiEndpoints` method, replace the placeholder
-
-```csharp
-        // Feature endpoint groups are mapped here (added per feature):
-        // app.MapClientEndpoints();
-```
-
-with:
-
-```csharp
-        app.MapClientEndpoints();
-```
-
-- [ ] **Step 3: Build to verify it compiles**
+- [ ] **Step 2: Build to verify it compiles**
 
 Run: `dotnet build backend/src/Fmis.Api/Fmis.Api.csproj`
 Expected: `Build succeeded`.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 3: Commit**
 
 ```bash
 git add backend/src/Fmis.Api/
-git commit -m "Add Client endpoints injecting the command/query bus"
+git commit -m "Add ClientsController injecting the command/query bus"
 ```
 
 ---
@@ -1719,7 +1697,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
 - [ ] **Step 2: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj`
-Expected: PASS (6 tests). If the 401 test returns 404, confirm `RequireAuthorization()` is on the group and that `UseApiPipeline` runs `UseAuthentication()`/`UseAuthorization()`.
+Expected: PASS (6 tests). If the 401 test returns 404, confirm `[Authorize]` is on `ClientsController` and that `UseApiPipeline` runs `UseAuthentication()`/`UseAuthorization()`.
 
 - [ ] **Step 3: Commit**
 

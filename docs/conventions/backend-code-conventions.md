@@ -48,10 +48,12 @@ Slices are invoked through a thin in-house bus — **no MediatR** (it is now com
 
 ## Api host composition
 
+The HTTP layer uses **ASP.NET Core MVC controllers** (`[ApiController]`, attribute routing) — the conventional choice — not minimal-API endpoint routing. One controller per feature area, placed in that area's folder (e.g. `Fmis.Api/Clients/ClientsController.cs`), keeping the vertical-slice layout. Controllers inject `ICommandBus`/`IQueryBus` and never touch handlers or `DbContext` directly. MVC's automatic model-state 400 is suppressed (`SuppressModelStateInvalidFilter`) so validation stays centralized in the command bus.
+
 `Program.cs` stays thin — it only builds the host, adds services, runs the pipeline, and calls `Run()`. Everything else lives in extension methods under `Fmis.Api/Configuration/`:
 
-- **Service registration** → `IServiceCollection` extensions (e.g. `AddApiServices`, with cohesive sub-methods like `AddApiErrorHandling`, `AddApiDocumentation`, `AddApiAuthentication`).
-- **Request pipeline / startup** → `WebApplication` extensions (e.g. `UseApiPipeline`, `MapApiEndpoints`, `MigrateDatabase`). `MapApiEndpoints` is the one place feature endpoint groups are wired. `MigrateDatabase` guards on `Database.IsRelational()` so it no-ops under the InMemory provider used by tests.
+- **Service registration** → `IServiceCollection` extensions (e.g. `AddApiServices`, with cohesive sub-methods like `AddApiControllers`, `AddApiErrorHandling`, `AddApiDocumentation`, `AddApiAuthentication`).
+- **Request pipeline / startup** → `WebApplication` extensions (e.g. `UseApiPipeline`, `MapApiEndpoints` → `MapControllers()`, `MigrateDatabase`). `MigrateDatabase` guards on `Database.IsRelational()` so it no-ops under the InMemory provider used by tests.
 
 When a new cross-cutting concern is added, extend or add an extension method — don't grow `Program.cs`.
 
