@@ -10,7 +10,7 @@ public static class MessagingServiceCollectionExtensions
         services.AddScoped<ICommandBus, CommandBus>();
         services.AddScoped<IQueryBus, QueryBus>();
 
-        foreach (var assembly in assemblies)
+        foreach (var assembly in assemblies.Distinct())
         {
             RegisterImplementations(services, assembly, typeof(ICommandHandler<,>));
             RegisterImplementations(services, assembly, typeof(IQueryHandler<,>));
