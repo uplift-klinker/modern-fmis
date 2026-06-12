@@ -10,15 +10,17 @@ Make a type's role obvious from its name:
 |---|---|---|---|
 | EF Core entity | `Entity` | `ClientEntity` | `Fmis.Core/<Area>/` |
 | External API model (DTO) | `Model` | `CreateClientRequestModel`, `ClientResponseModel` | `Fmis.Models/` |
-| Core operation result | `Result` | `CreateClientResult`, `GetClientResult` | `Fmis.Core/<Area>/<Feature>/` |
+| Core operation result | `Result` | `CreateClientResult` (per-op), `ClientResult` (shared read) | `Fmis.Core/<Area>/<Feature>/` or `Fmis.Core/<Area>/` |
 | Core command | `Command` | `CreateClientCommand` | `Fmis.Core/<Area>/<Feature>/` |
 | Core query | `Query` | `GetClientQuery`, `ListClientsQuery` | `Fmis.Core/<Area>/<Feature>/` |
 
-## Per-operation result types
+## Result types
 
-Each operation returns its **own** result type (`CreateClientResult`, `GetClientResult`, …) — not a single shared "ClientResult". This keeps each slice's contract independent.
+**Reads of an entity share a canonical `<Entity>Result`** (e.g. `ClientResult`): get-by-id returns it singular, list returns `ListResult<ClientResult>`. The shared read result lives at the **area** level (`Fmis.Core/<Area>/`), not in a feature folder, since multiple read features use it. Don't create a separate identical `GetXResult` / `ListXResult` per read — that's duplication.
 
-If two results genuinely need to share fields, introduce a shared base **at that point**, named for what it represents (not `*Result`), and have the operation results inherit it. Do not pre-create the base (YAGNI).
+**Commands (and any operation whose output genuinely differs) define their own `<Operation>Result`** (e.g. `CreateClientResult`), living in the feature folder. Don't force a command to return the shared read result.
+
+If several operation results later need to share fields, introduce a shared base **at that point**, named for what it represents, and have them inherit it — don't pre-create it (YAGNI).
 
 ## Collections: generic list results
 

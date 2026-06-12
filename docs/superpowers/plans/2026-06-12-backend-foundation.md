@@ -36,18 +36,17 @@ backend/
 │  │  └─ Clients/
 │  │     ├─ ClientEntity.cs                   entity
 │  │     ├─ ClientConfiguration.cs            IEntityTypeConfiguration<ClientEntity>
+│  │     ├─ ClientResult.cs                   shared read result (get-by-id + list)
 │  │     ├─ CreateClient/
 │  │     │  ├─ CreateClientCommand.cs         : ICommand<CreateClientResult>
 │  │     │  ├─ CreateClientResult.cs
 │  │     │  ├─ CreateClientCommandValidator.cs : AbstractValidator<CreateClientCommand>
 │  │     │  └─ CreateClientHandler.cs         : ICommandHandler<...>
 │  │     ├─ ListClients/
-│  │     │  ├─ ListClientsQuery.cs            : IQuery<ListResult<ListClientsResult>>
-│  │     │  ├─ ListClientsResult.cs           per-item result
+│  │     │  ├─ ListClientsQuery.cs            : IQuery<ListResult<ClientResult>>
 │  │     │  └─ ListClientsHandler.cs          : IQueryHandler<...>
 │  │     └─ GetClient/
-│  │        ├─ GetClientQuery.cs              : IQuery<GetClientResult?>
-│  │        ├─ GetClientResult.cs
+│  │        ├─ GetClientQuery.cs              : IQuery<ClientResult?>
 │  │        └─ GetClientHandler.cs            : IQueryHandler<...>
 │  ├─ Fmis.Models/
 │  │  ├─ Fmis.Models.csproj
@@ -923,7 +922,7 @@ git commit -m "Add CreateClient slice with command validation"
 ## Task 7: ListClients slice
 
 **Files:**
-- Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsResult.cs`
+- Create: `backend/src/Fmis.Core/Clients/ClientResult.cs` (shared read result — used here and by GetClient)
 - Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsQuery.cs`
 - Create: `backend/src/Fmis.Core/Clients/ListClients/ListClientsHandler.cs`
 - Test: `backend/tests/Fmis.Core.Tests/Clients/ListClientsHandlerTests.cs`
@@ -972,16 +971,18 @@ public class ListClientsHandlerTests : InMemoryCoreTestBase
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~ListClientsHandlerTests"`
-Expected: FAIL — `ListClientsQuery` / `ListClientsResult` do not exist.
+Expected: FAIL — `ListClientsQuery` / `ClientResult` do not exist.
 
-- [ ] **Step 3: Create the per-item result**
+- [ ] **Step 3: Create the shared read result**
 
-`backend/src/Fmis.Core/Clients/ListClients/ListClientsResult.cs`:
+`ClientResult` is the canonical client read shape, shared by get-by-id (singular) and list (`ListResult<ClientResult>`). It lives at the `Clients` area level, not inside a feature folder.
+
+`backend/src/Fmis.Core/Clients/ClientResult.cs`:
 
 ```csharp
-namespace Fmis.Core.Clients.ListClients;
+namespace Fmis.Core.Clients;
 
-public record ListClientsResult(Guid Id, string Name, string? Email, string? PhoneNumber);
+public record ClientResult(Guid Id, string Name, string? Email, string? PhoneNumber);
 ```
 
 - [ ] **Step 4: Create the query**
@@ -994,7 +995,7 @@ using Fmis.Core.Common.Messaging;
 
 namespace Fmis.Core.Clients.ListClients;
 
-public record ListClientsQuery : IQuery<ListResult<ListClientsResult>>;
+public record ListClientsQuery : IQuery<ListResult<ClientResult>>;
 ```
 
 - [ ] **Step 5: Create the handler**
@@ -1009,21 +1010,23 @@ using Microsoft.EntityFrameworkCore;
 namespace Fmis.Core.Clients.ListClients;
 
 public class ListClientsHandler(FmisDbContext db)
-    : IQueryHandler<ListClientsQuery, ListResult<ListClientsResult>>
+    : IQueryHandler<ListClientsQuery, ListResult<ClientResult>>
 {
-    public async Task<ListResult<ListClientsResult>> HandleAsync(ListClientsQuery query, CancellationToken cancellationToken)
+    public async Task<ListResult<ClientResult>> HandleAsync(ListClientsQuery query, CancellationToken cancellationToken)
     {
         var items = await db.Clients
             .OrderBy(c => c.Name)
-            .Select(c => new ListClientsResult(c.Id, c.Name, c.Email, c.PhoneNumber))
+            .Select(c => new ClientResult(c.Id, c.Name, c.Email, c.PhoneNumber))
             .ToListAsync(cancellationToken);
 
         var totalCount = await db.Clients.CountAsync(cancellationToken);
 
-        return new ListResult<ListClientsResult>(items, totalCount);
+        return new ListResult<ClientResult>(items, totalCount);
     }
 }
 ```
+
+> `ClientResult` (namespace `Fmis.Core.Clients`) resolves here without a `using` because `Fmis.Core.Clients` is an enclosing namespace of `Fmis.Core.Clients.ListClients`. The same holds for `ListClientsQuery` above and `GetClientHandler` in Task 8.
 
 - [ ] **Step 6: Run the test to verify it passes**
 
@@ -1042,10 +1045,11 @@ git commit -m "Add ListClients slice with ListResult and total count"
 ## Task 8: GetClient slice (with not-found)
 
 **Files:**
-- Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientResult.cs`
 - Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientQuery.cs`
 - Create: `backend/src/Fmis.Core/Clients/GetClient/GetClientHandler.cs`
 - Test: `backend/tests/Fmis.Core.Tests/Clients/GetClientHandlerTests.cs`
+
+Reuses the shared `ClientResult` created in Task 7 — get-by-id returns it in singular form.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1087,21 +1091,11 @@ public class GetClientHandlerTests : InMemoryCoreTestBase
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~GetClientHandlerTests"`
-Expected: FAIL — `GetClientQuery` / `GetClientResult` do not exist.
+Expected: FAIL — `GetClientQuery` does not exist. (`ClientResult` already exists from Task 7.)
 
-- [ ] **Step 3: Create the result**
+- [ ] **Step 3: Create the query**
 
-`backend/src/Fmis.Core/Clients/GetClient/GetClientResult.cs`:
-
-```csharp
-namespace Fmis.Core.Clients.GetClient;
-
-public record GetClientResult(Guid Id, string Name, string? Email, string? PhoneNumber);
-```
-
-- [ ] **Step 4: Create the query**
-
-Returning `GetClientResult?` makes "not found" an expected `null` the Api maps to 404.
+Returning `ClientResult?` makes "not found" an expected `null` the Api maps to 404.
 
 `backend/src/Fmis.Core/Clients/GetClient/GetClientQuery.cs`:
 
@@ -1110,10 +1104,10 @@ using Fmis.Core.Common.Messaging;
 
 namespace Fmis.Core.Clients.GetClient;
 
-public record GetClientQuery(Guid Id) : IQuery<GetClientResult?>;
+public record GetClientQuery(Guid Id) : IQuery<ClientResult?>;
 ```
 
-- [ ] **Step 5: Create the handler**
+- [ ] **Step 4: Create the handler**
 
 `backend/src/Fmis.Core/Clients/GetClient/GetClientHandler.cs`:
 
@@ -1124,28 +1118,28 @@ using Microsoft.EntityFrameworkCore;
 namespace Fmis.Core.Clients.GetClient;
 
 public class GetClientHandler(FmisDbContext db)
-    : IQueryHandler<GetClientQuery, GetClientResult?>
+    : IQueryHandler<GetClientQuery, ClientResult?>
 {
-    public async Task<GetClientResult?> HandleAsync(GetClientQuery query, CancellationToken cancellationToken)
+    public async Task<ClientResult?> HandleAsync(GetClientQuery query, CancellationToken cancellationToken)
     {
         return await db.Clients
             .Where(c => c.Id == query.Id)
-            .Select(c => new GetClientResult(c.Id, c.Name, c.Email, c.PhoneNumber))
+            .Select(c => new ClientResult(c.Id, c.Name, c.Email, c.PhoneNumber))
             .FirstOrDefaultAsync(cancellationToken);
     }
 }
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [ ] **Step 5: Run the test to verify it passes**
 
 Run: `dotnet test backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj --filter "FullyQualifiedName~GetClientHandlerTests"`
 Expected: PASS (2 tests).
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
 git add backend/src/Fmis.Core/ backend/tests/Fmis.Core.Tests/
-git commit -m "Add GetClient slice with not-found handling"
+git commit -m "Add GetClient slice reusing shared ClientResult"
 ```
 
 ---
