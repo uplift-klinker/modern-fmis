@@ -57,9 +57,12 @@ backend/
 │  │     └─ ClientResponseModel.cs
 │  └─ Fmis.Api/
 │     ├─ Fmis.Api.csproj
-│     ├─ Program.cs                           DI, auth, ProblemDetails, OpenAPI, endpoints
+│     ├─ Program.cs                           thin: AddApiServices → MigrateDatabase/UseApiPipeline/MapApiEndpoints
 │     ├─ appsettings.json
 │     ├─ Dockerfile
+│     ├─ Configuration/
+│     │  ├─ ApiServiceCollectionExtensions.cs  AddApiServices (+ error handling, docs, auth)
+│     │  └─ ApiApplicationBuilderExtensions.cs UseApiPipeline / MapApiEndpoints / MigrateDatabase
 │     ├─ Common/
 │     │  └─ ValidationExceptionHandler.cs     ValidationException → 400
 │     └─ Clients/
@@ -1201,7 +1204,9 @@ git commit -m "Add Client request/response models and generic ListResultModel"
 
 **Files:**
 - Create: `backend/src/Fmis.Api/Common/ValidationExceptionHandler.cs`
-- Modify: `backend/src/Fmis.Api/Program.cs` (replace template)
+- Create: `backend/src/Fmis.Api/Configuration/ApiServiceCollectionExtensions.cs`
+- Create: `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs`
+- Modify: `backend/src/Fmis.Api/Program.cs` (replace template with thin host)
 - Create/replace: `backend/src/Fmis.Api/appsettings.json`
 
 - [ ] **Step 1: Create the validation exception handler**
@@ -1240,45 +1245,119 @@ public class ValidationExceptionHandler : IExceptionHandler
 }
 ```
 
-- [ ] **Step 2: Replace `Program.cs`**
+- [ ] **Step 2: Create the service-registration extensions**
 
-`backend/src/Fmis.Api/Program.cs`:
+Keep `Program.cs` thin: group all service registration into cohesive extension methods.
+
+`backend/src/Fmis.Api/Configuration/ApiServiceCollectionExtensions.cs`:
 
 ```csharp
 using Fmis.Api.Common;
 using Fmis.Core;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 
+namespace Fmis.Api.Configuration;
+
+public static class ApiServiceCollectionExtensions
+{
+    public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddFmisCore(configuration.GetConnectionString("Fmis")
+            ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
+        services.AddApiErrorHandling();
+        services.AddApiDocumentation();
+        services.AddApiAuthentication(configuration);
+        return services;
+    }
+
+    public static IServiceCollection AddApiErrorHandling(this IServiceCollection services)
+    {
+        services.AddProblemDetails();
+        services.AddExceptionHandler<ValidationExceptionHandler>();
+        return services;
+    }
+
+    public static IServiceCollection AddApiDocumentation(this IServiceCollection services)
+    {
+        services.AddOpenApi();
+        return services;
+    }
+
+    // Authentication only — verify identity via Auth0 JWT. No authorization policies.
+    public static IServiceCollection AddApiAuthentication(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+            .AddJwtBearer(options =>
+            {
+                options.Authority = configuration["Auth0:Authority"];
+                options.Audience = configuration["Auth0:Audience"];
+            });
+        services.AddAuthorization();
+        return services;
+    }
+}
+```
+
+- [ ] **Step 3: Create the application-pipeline extensions**
+
+Group middleware, endpoint mapping, and the startup migration into pipeline extensions. `MigrateDatabase` guards on `IsRelational()` so it is a no-op under the InMemory provider the Api tests use (InMemory can't run migrations). `MapApiEndpoints` is the single place feature endpoint groups are wired (filled in Task 11).
+
+`backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs`:
+
+```csharp
+using Fmis.Core;
+using Microsoft.EntityFrameworkCore;
+
+namespace Fmis.Api.Configuration;
+
+public static class ApiApplicationBuilderExtensions
+{
+    public static WebApplication UseApiPipeline(this WebApplication app)
+    {
+        app.UseExceptionHandler();
+        app.UseStatusCodePages();
+        app.MapOpenApi();
+        app.UseAuthentication();
+        app.UseAuthorization();
+        return app;
+    }
+
+    public static WebApplication MapApiEndpoints(this WebApplication app)
+    {
+        // Feature endpoint groups are mapped here (added per feature):
+        // app.MapClientEndpoints();
+        return app;
+    }
+
+    public static WebApplication MigrateDatabase(this WebApplication app)
+    {
+        using var scope = app.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<FmisDbContext>();
+        if (db.Database.IsRelational())
+        {
+            db.Database.Migrate();
+        }
+        return app;
+    }
+}
+```
+
+- [ ] **Step 4: Create the thin `Program.cs`**
+
+`backend/src/Fmis.Api/Program.cs`:
+
+```csharp
+using Fmis.Api.Configuration;
+
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddFmisCore(builder.Configuration.GetConnectionString("Fmis")
-    ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
-
-builder.Services.AddProblemDetails();
-builder.Services.AddExceptionHandler<ValidationExceptionHandler>();
-builder.Services.AddOpenApi();
-
-// Authentication only — verify identity via Auth0 JWT. No authorization policies.
-builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-    .AddJwtBearer(options =>
-    {
-        options.Authority = builder.Configuration["Auth0:Authority"];
-        options.Audience = builder.Configuration["Auth0:Audience"];
-    });
-builder.Services.AddAuthorization();
+builder.Services.AddApiServices(builder.Configuration);
 
 var app = builder.Build();
 
-app.UseExceptionHandler();
-app.UseStatusCodePages();
-
-app.MapOpenApi();
-
-app.UseAuthentication();
-app.UseAuthorization();
-
-// Client endpoints are mapped here in Task 11:
-// app.MapClientEndpoints();
+app.MigrateDatabase()
+   .UseApiPipeline()
+   .MapApiEndpoints();
 
 app.Run();
 
@@ -1286,7 +1365,7 @@ app.Run();
 public partial class Program;
 ```
 
-- [ ] **Step 3: Replace `appsettings.json`**
+- [ ] **Step 5: Replace `appsettings.json`**
 
 `backend/src/Fmis.Api/appsettings.json`:
 
@@ -1311,16 +1390,16 @@ public partial class Program;
 
 > `Auth0` values are blank locally; the real values come from the `auth` Pulumi stack (Plan 3). With no token presented, protected endpoints return 401 without contacting Auth0.
 
-- [ ] **Step 4: Build to verify it compiles**
+- [ ] **Step 6: Build to verify it compiles**
 
 Run: `dotnet build backend/src/Fmis.Api/Fmis.Api.csproj`
 Expected: `Build succeeded`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/Fmis.Api/Program.cs backend/src/Fmis.Api/appsettings.json backend/src/Fmis.Api/Common/
-git commit -m "Configure Api host: Core DI, ProblemDetails, OpenAPI, JWT auth, validation mapping"
+git add backend/src/Fmis.Api/Program.cs backend/src/Fmis.Api/appsettings.json backend/src/Fmis.Api/Common/ backend/src/Fmis.Api/Configuration/
+git commit -m "Configure Api host via thin Program.cs and service/pipeline extensions"
 ```
 
 ---
@@ -1329,7 +1408,7 @@ git commit -m "Configure Api host: Core DI, ProblemDetails, OpenAPI, JWT auth, v
 
 **Files:**
 - Create: `backend/src/Fmis.Api/Clients/ClientEndpoints.cs`
-- Modify: `backend/src/Fmis.Api/Program.cs` (map endpoints)
+- Modify: `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs` (wire endpoints into `MapApiEndpoints`)
 
 Endpoints inject `ICommandBus`/`IQueryBus` (never handlers) and translate `Models` ↔ Core messages. Validation is handled by the command bus (Task 2) and surfaced as 400 by the exception handler (Task 10) — endpoints contain **no** manual validation. The list endpoint maps the Core `ListResult` into `ListResultModel<ClientResponseModel>`. All endpoints require an authenticated user. Behavior is covered by the integration tests in Task 13.
 
@@ -1401,25 +1480,25 @@ public static class ClientEndpoints
 }
 ```
 
-- [ ] **Step 2: Map the endpoints in `Program.cs`**
+- [ ] **Step 2: Wire the endpoints into `MapApiEndpoints`**
 
-In `backend/src/Fmis.Api/Program.cs`, add the using at the top:
+In `backend/src/Fmis.Api/Configuration/ApiApplicationBuilderExtensions.cs`, add the using at the top:
 
 ```csharp
 using Fmis.Api.Clients;
 ```
 
-and replace
+and in the `MapApiEndpoints` method, replace the placeholder
 
 ```csharp
-// Client endpoints are mapped here in Task 11:
-// app.MapClientEndpoints();
+        // Feature endpoint groups are mapped here (added per feature):
+        // app.MapClientEndpoints();
 ```
 
 with:
 
 ```csharp
-app.MapClientEndpoints();
+        app.MapClientEndpoints();
 ```
 
 - [ ] **Step 3: Build to verify it compiles**
@@ -1640,7 +1719,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
 - [ ] **Step 2: Run the tests to verify they pass**
 
 Run: `dotnet test backend/tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj`
-Expected: PASS (6 tests). If the 401 test returns 404, confirm `RequireAuthorization()` is on the group and `UseAuthentication()/UseAuthorization()` are in `Program.cs`.
+Expected: PASS (6 tests). If the 401 test returns 404, confirm `RequireAuthorization()` is on the group and that `UseApiPipeline` runs `UseAuthentication()`/`UseAuthorization()`.
 
 - [ ] **Step 3: Commit**
 
@@ -1707,8 +1786,9 @@ git commit -m "Add OpenAPI document smoke test"
 **Files:**
 - Create: `backend/src/Fmis.Api/Dockerfile`
 - Create: `backend/.dockerignore`
-- Modify: `backend/src/Fmis.Api/Program.cs` (startup migration)
 - Modify: `docker-compose.yml` (add `backend` service)
+
+> Startup migration is already wired via `MigrateDatabase` (Task 10) and runs only under a relational provider, so no `Program.cs` change is needed here.
 
 - [ ] **Step 1: Create the Dockerfile**
 
@@ -1740,19 +1820,7 @@ ENTRYPOINT ["dotnet", "Fmis.Api.dll"]
 **/obj
 ```
 
-- [ ] **Step 3: Apply migrations on startup**
-
-So the containerized API creates its schema on boot. First add `using Microsoft.EntityFrameworkCore;` to the top of `backend/src/Fmis.Api/Program.cs` (needed for the `Migrate()` extension). Then, immediately after `var app = builder.Build();`, add:
-
-```csharp
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<Fmis.Core.FmisDbContext>();
-    db.Database.Migrate();
-}
-```
-
-- [ ] **Step 4: Add the backend service to `docker-compose.yml`**
+- [ ] **Step 3: Add the backend service to `docker-compose.yml`**
 
 Replace `docker-compose.yml` (repo root) with:
 
@@ -1790,7 +1858,7 @@ volumes:
   db-data:
 ```
 
-- [ ] **Step 5: Build and run the stack**
+- [ ] **Step 4: Build and run the stack**
 
 ```bash
 docker compose up --build -d
@@ -1798,7 +1866,7 @@ docker compose up --build -d
 
 Expected: both `db` and `backend` start; `docker compose ps` shows them healthy/running.
 
-- [ ] **Step 6: Verify the API enforces auth and serves OpenAPI**
+- [ ] **Step 5: Verify the API enforces auth and serves OpenAPI**
 
 ```bash
 curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/clients
@@ -1810,17 +1878,17 @@ curl -s -o /dev/null -w "%{http_code}\n" http://localhost:8080/openapi/v1.json
 ```
 Expected: `200`.
 
-- [ ] **Step 7: Tear down**
+- [ ] **Step 6: Tear down**
 
 ```bash
 docker compose down
 ```
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
-git add backend/src/Fmis.Api/Dockerfile backend/.dockerignore docker-compose.yml backend/src/Fmis.Api/Program.cs
-git commit -m "Add backend Dockerfile and docker-compose service with startup migration"
+git add backend/src/Fmis.Api/Dockerfile backend/.dockerignore docker-compose.yml
+git commit -m "Add backend Dockerfile and docker-compose service"
 ```
 
 ---

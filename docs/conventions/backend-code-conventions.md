@@ -46,6 +46,15 @@ Slices are invoked through a thin in-house bus — **no MediatR** (it is now com
 
 **Validation library:** FluentValidation (free/open-source). Cross-field rules (e.g. "email or phone required") belong in the slice's validator.
 
+## Api host composition
+
+`Program.cs` stays thin — it only builds the host, adds services, runs the pipeline, and calls `Run()`. Everything else lives in extension methods under `Fmis.Api/Configuration/`:
+
+- **Service registration** → `IServiceCollection` extensions (e.g. `AddApiServices`, with cohesive sub-methods like `AddApiErrorHandling`, `AddApiDocumentation`, `AddApiAuthentication`).
+- **Request pipeline / startup** → `WebApplication` extensions (e.g. `UseApiPipeline`, `MapApiEndpoints`, `MigrateDatabase`). `MapApiEndpoints` is the one place feature endpoint groups are wired. `MigrateDatabase` guards on `Database.IsRelational()` so it no-ops under the InMemory provider used by tests.
+
+When a new cross-cutting concern is added, extend or add an extension method — don't grow `Program.cs`.
+
 ## Testing: exercise through DI, not `new`
 
 Handler/slice tests resolve `ICommandBus` / `IQueryBus` from a **real DI container** (the same composition the Api uses) and execute messages through them. Never `new` a handler in a test.
