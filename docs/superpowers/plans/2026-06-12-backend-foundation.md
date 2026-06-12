@@ -929,12 +929,12 @@ git commit -m "Add CreateClient slice with command validation"
 
 - [ ] **Step 1: Write the failing test**
 
-Tests seed entities directly through the DbContext (bypassing the command validator), then query through the bus.
+Tests seed data by creating clients **through the command bus** (the real write flow), then query through the bus.
 
 `backend/tests/Fmis.Core.Tests/Clients/ListClientsHandlerTests.cs`:
 
 ```csharp
-using Fmis.Core.Clients;
+using Fmis.Core.Clients.CreateClient;
 using Fmis.Core.Clients.ListClients;
 using Fmis.TestSupport;
 
@@ -945,9 +945,10 @@ public class ListClientsHandlerTests : InMemoryCoreTestBase
     [Fact]
     public async Task Returns_all_clients_with_total_count()
     {
-        Db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Acme Farms" });
-        Db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Bedrock Ag" });
-        await Db.SaveChangesAsync();
+        await CommandBus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", "ops@acme.example", null), CancellationToken.None);
+        await CommandBus.ExecuteAsync(
+            new CreateClientCommand("Bedrock Ag", "info@bedrock.example", null), CancellationToken.None);
 
         var result = await QueryBus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
 
@@ -1056,7 +1057,7 @@ Reuses the shared `ClientResult` created in Task 7 — get-by-id returns it in s
 `backend/tests/Fmis.Core.Tests/Clients/GetClientHandlerTests.cs`:
 
 ```csharp
-using Fmis.Core.Clients;
+using Fmis.Core.Clients.CreateClient;
 using Fmis.Core.Clients.GetClient;
 using Fmis.TestSupport;
 
@@ -1067,14 +1068,13 @@ public class GetClientHandlerTests : InMemoryCoreTestBase
     [Fact]
     public async Task Returns_the_client_when_it_exists()
     {
-        var id = Guid.NewGuid();
-        Db.Clients.Add(new ClientEntity { Id = id, Name = "Acme Farms", Email = "ops@acme.example" });
-        await Db.SaveChangesAsync();
+        var created = await CommandBus.ExecuteAsync(
+            new CreateClientCommand("Acme Farms", "ops@acme.example", null), CancellationToken.None);
 
-        var result = await QueryBus.QueryAsync(new GetClientQuery(id), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new GetClientQuery(created.Id), CancellationToken.None);
 
         Assert.NotNull(result);
-        Assert.Equal(id, result!.Id);
+        Assert.Equal(created.Id, result!.Id);
         Assert.Equal("Acme Farms", result.Name);
     }
 
