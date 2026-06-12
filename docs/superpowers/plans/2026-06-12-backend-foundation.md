@@ -68,7 +68,8 @@ backend/
 └─ tests/
    ├─ Fmis.TestSupport/
    │  ├─ Fmis.TestSupport.csproj
-   │  └─ TestServices.cs                      DI container factory (InMemory) for bus tests
+   │  ├─ TestServices.cs                      DI container factory (InMemory) for bus tests
+   │  └─ CoreTestBase.cs                       base class: owns scope, exposes buses/Db, disposes
    ├─ Fmis.Core.Tests/
    │  ├─ Fmis.Core.Tests.csproj
    │  ├─ Common/CommandBusTests.cs
@@ -599,12 +600,13 @@ git commit -m "Add ClientEntity, FmisDbContext, and Core DI wiring with discover
 
 ---
 
-## Task 4: TestServices DI container factory
+## Task 4: TestServices factory and CoreTestBase
 
 **Files:**
 - Create: `backend/tests/Fmis.TestSupport/TestServices.cs`
+- Create: `backend/tests/Fmis.TestSupport/CoreTestBase.cs`
 
-`TestServices` builds the same Core composition the Api uses (buses, discovered handlers, validators), backed by a unique InMemory database. Tests resolve `ICommandBus`/`IQueryBus` from a scope and execute messages — never constructing handlers. (A Testcontainers-backed variant is added later, when a test first needs real Postgres.) No build-only test here; the factory is exercised by the real slice tests starting in Task 6.
+`TestServices` builds the same Core composition the Api uses (buses, discovered handlers, validators), backed by a unique InMemory database. `CoreTestBase` is the base class every slice test inherits: it creates the provider + scope once in its constructor, exposes `CommandBus`/`QueryBus`/`Db`, and disposes everything via `IDisposable` (xUnit calls `Dispose` after each test). This removes the per-test scope boilerplate. (A Testcontainers-backed variant is added later, when a test first needs real Postgres.)
 
 - [ ] **Step 1: Write the DI container factory**
 
@@ -635,16 +637,58 @@ public static class TestServices
 }
 ```
 
-- [ ] **Step 2: Build to verify it compiles**
+- [ ] **Step 2: Write the base test class**
+
+`backend/tests/Fmis.TestSupport/CoreTestBase.cs`:
+
+```csharp
+using Fmis.Core;
+using Fmis.Core.Common.Messaging;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace Fmis.TestSupport;
+
+/// <summary>
+/// Base class for slice tests. Owns a Core DI container (InMemory) and a single scope,
+/// and disposes both after each test (xUnit calls <see cref="Dispose"/> per test instance).
+/// Resolve work through <see cref="CommandBus"/>/<see cref="QueryBus"/>; seed/assert via <see cref="Db"/>.
+/// All three share the same scope, so the DbContext is consistent across them.
+/// </summary>
+public abstract class CoreTestBase : IDisposable
+{
+    private readonly ServiceProvider _provider;
+    private readonly IServiceScope _scope;
+
+    protected CoreTestBase()
+    {
+        _provider = TestServices.CreateInMemory();
+        _scope = _provider.CreateScope();
+    }
+
+    protected IServiceProvider Services => _scope.ServiceProvider;
+    protected ICommandBus CommandBus => Services.GetRequiredService<ICommandBus>();
+    protected IQueryBus QueryBus => Services.GetRequiredService<IQueryBus>();
+    protected FmisDbContext Db => Services.GetRequiredService<FmisDbContext>();
+
+    public void Dispose()
+    {
+        _scope.Dispose();
+        _provider.Dispose();
+        GC.SuppressFinalize(this);
+    }
+}
+```
+
+- [ ] **Step 3: Build to verify it compiles**
 
 Run: `dotnet build backend/tests/Fmis.TestSupport/Fmis.TestSupport.csproj`
 Expected: `Build succeeded`.
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add backend/tests/Fmis.TestSupport/
-git commit -m "Add TestServices DI container factory (InMemory)"
+git commit -m "Add TestServices factory and CoreTestBase for slice tests"
 ```
 
 ---
@@ -727,24 +771,17 @@ Handlers and validators are auto-discovered (Task 3) — no registration step. A
 
 ```csharp
 using FluentValidation;
-using Fmis.Core;
 using Fmis.Core.Clients.CreateClient;
-using Fmis.Core.Common.Messaging;
 using Fmis.TestSupport;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class CreateClientHandlerTests
+public class CreateClientHandlerTests : CoreTestBase
 {
     [Fact]
     public async Task Persists_the_client_and_returns_it_with_a_generated_id()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
-
-        var result = await bus.ExecuteAsync(
+        var result = await CommandBus.ExecuteAsync(
             new CreateClientCommand("Acme Farms", "ops@acme.example", "555-0100"),
             CancellationToken.None);
 
@@ -753,19 +790,14 @@ public class CreateClientHandlerTests
         Assert.Equal("ops@acme.example", result.Email);
         Assert.Equal("555-0100", result.PhoneNumber);
 
-        var db = scope.ServiceProvider.GetRequiredService<FmisDbContext>();
-        var saved = Assert.Single(db.Clients);
+        var saved = Assert.Single(Db.Clients);
         Assert.Equal(result.Id, saved.Id);
     }
 
     [Fact]
     public async Task Accepts_a_client_with_only_a_phone_number()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
-
-        var result = await bus.ExecuteAsync(
+        var result = await CommandBus.ExecuteAsync(
             new CreateClientCommand("Acme Farms", null, "555-0100"),
             CancellationToken.None);
 
@@ -775,22 +807,14 @@ public class CreateClientHandlerTests
     [Fact]
     public async Task Rejects_a_blank_name()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
-
-        await Assert.ThrowsAsync<ValidationException>(() => bus.ExecuteAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(
             new CreateClientCommand("", "ops@acme.example", null), CancellationToken.None));
     }
 
     [Fact]
     public async Task Rejects_a_client_with_no_email_or_phone()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<ICommandBus>();
-
-        await Assert.ThrowsAsync<ValidationException>(() => bus.ExecuteAsync(
+        await Assert.ThrowsAsync<ValidationException>(() => CommandBus.ExecuteAsync(
             new CreateClientCommand("Acme Farms", null, null), CancellationToken.None));
     }
 }
@@ -911,30 +935,22 @@ Tests seed entities directly through the DbContext (bypassing the command valida
 `backend/tests/Fmis.Core.Tests/Clients/ListClientsHandlerTests.cs`:
 
 ```csharp
-using Fmis.Core;
 using Fmis.Core.Clients;
 using Fmis.Core.Clients.ListClients;
-using Fmis.Core.Common.Messaging;
 using Fmis.TestSupport;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class ListClientsHandlerTests
+public class ListClientsHandlerTests : CoreTestBase
 {
     [Fact]
     public async Task Returns_all_clients_with_total_count()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
+        Db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Acme Farms" });
+        Db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Bedrock Ag" });
+        await Db.SaveChangesAsync();
 
-        var db = scope.ServiceProvider.GetRequiredService<FmisDbContext>();
-        db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Acme Farms" });
-        db.Clients.Add(new ClientEntity { Id = Guid.NewGuid(), Name = "Bedrock Ag" });
-        await db.SaveChangesAsync();
-
-        var bus = scope.ServiceProvider.GetRequiredService<IQueryBus>();
-        var result = await bus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
 
         Assert.Equal(2, result.TotalCount);
         Assert.Equal(2, result.Items.Count);
@@ -945,11 +961,7 @@ public class ListClientsHandlerTests
     [Fact]
     public async Task Returns_empty_with_zero_total_when_there_are_no_clients()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<IQueryBus>();
-
-        var result = await bus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new ListClientsQuery(), CancellationToken.None);
 
         Assert.Equal(0, result.TotalCount);
         Assert.Empty(result.Items);
@@ -1040,30 +1052,22 @@ git commit -m "Add ListClients slice with ListResult and total count"
 `backend/tests/Fmis.Core.Tests/Clients/GetClientHandlerTests.cs`:
 
 ```csharp
-using Fmis.Core;
 using Fmis.Core.Clients;
 using Fmis.Core.Clients.GetClient;
-using Fmis.Core.Common.Messaging;
 using Fmis.TestSupport;
-using Microsoft.Extensions.DependencyInjection;
 
 namespace Fmis.Core.Tests.Clients;
 
-public class GetClientHandlerTests
+public class GetClientHandlerTests : CoreTestBase
 {
     [Fact]
     public async Task Returns_the_client_when_it_exists()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-
         var id = Guid.NewGuid();
-        var db = scope.ServiceProvider.GetRequiredService<FmisDbContext>();
-        db.Clients.Add(new ClientEntity { Id = id, Name = "Acme Farms", Email = "ops@acme.example" });
-        await db.SaveChangesAsync();
+        Db.Clients.Add(new ClientEntity { Id = id, Name = "Acme Farms", Email = "ops@acme.example" });
+        await Db.SaveChangesAsync();
 
-        var bus = scope.ServiceProvider.GetRequiredService<IQueryBus>();
-        var result = await bus.QueryAsync(new GetClientQuery(id), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new GetClientQuery(id), CancellationToken.None);
 
         Assert.NotNull(result);
         Assert.Equal(id, result!.Id);
@@ -1073,11 +1077,7 @@ public class GetClientHandlerTests
     [Fact]
     public async Task Returns_null_when_the_client_does_not_exist()
     {
-        await using var provider = TestServices.CreateInMemory();
-        using var scope = provider.CreateScope();
-        var bus = scope.ServiceProvider.GetRequiredService<IQueryBus>();
-
-        var result = await bus.QueryAsync(new GetClientQuery(Guid.NewGuid()), CancellationToken.None);
+        var result = await QueryBus.QueryAsync(new GetClientQuery(Guid.NewGuid()), CancellationToken.None);
 
         Assert.Null(result);
     }
