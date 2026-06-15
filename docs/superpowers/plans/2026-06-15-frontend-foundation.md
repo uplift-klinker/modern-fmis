@@ -154,7 +154,19 @@ zsh -lc 'pnpm add react-router-dom@7 @reduxjs/toolkit@2 react-redux@9 @auth0/aut
 zsh -lc 'pnpm add -D msw@2 @faker-js/faker@10'
 ```
 
-- [ ] **Step 2: Create the folder skeleton**
+- [ ] **Step 2: Approve dependency build scripts (pnpm 11)**
+
+pnpm 11 blocks dependency postinstall/build scripts by default and reports `ERR_PNPM_IGNORED_BUILDS` for `browser-tabs-lock` (an Auth0 dep) and `msw`. Approve them declaratively (the committed equivalent of `pnpm approve-builds`) in `frontend/pnpm-workspace.yaml`:
+
+```yaml
+allowBuilds:
+  browser-tabs-lock: true
+  msw: true
+```
+
+If `pnpm` left a now-ignored `pnpm` field in `package.json`, remove it (`npm pkg delete pnpm`). Then `zsh -lc 'pnpm install'` runs the approved postinstalls — confirm no `ERR_PNPM_IGNORED_BUILDS`.
+
+- [ ] **Step 3: Create the folder skeleton**
 
 ```bash
 cd frontend/src
@@ -163,14 +175,14 @@ mkdir -p app shared/config shared/auth shared/api \
   routes testing
 ```
 
-- [ ] **Step 3: Verify**
+- [ ] **Step 4: Verify**
 
 Run: `zsh -lc 'pnpm test && pnpm typecheck'` → smoke passes; no type errors.
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Add frontend deps (MUI, RTK Query, Router, Auth0, TanStack Form, Zod) and feature/test folders"
+git add frontend/ && git commit -m "Add frontend deps (MUI, RTK Query, Router, Auth0, TanStack Form, Zod), approve builds, feature/test folders"
 ```
 
 ---
