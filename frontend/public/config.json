@@ -1,0 +1,4 @@
+{
+  "apiBaseUrl": "http://localhost:8080",
+  "auth": { "domain": "REPLACE_AT_DEPLOY.auth0.com", "clientId": "REPLACE_AT_DEPLOY", "audience": "https://api.modern-fmis" }
+}
