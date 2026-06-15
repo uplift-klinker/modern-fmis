@@ -2,14 +2,20 @@
 
 **Applies to:** all production code in this repository, every layer, every phase. This is non-negotiable and a core concept of how code here is developed.
 
-## The rule
+## The Three Laws of TDD
 
-**No production code is written before a failing test that requires it exists and has been run and observed to fail.**
+We follow Robert C. Martin's Three Laws of TDD (<http://butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd>):
 
-Follow the red → green → refactor cycle for every behavior:
+1. **You are not allowed to write any production code unless it is to make a failing unit test pass.**
+2. **You are not allowed to write any more of a unit test than is sufficient to fail — and compilation failures are failures.**
+3. **You are not allowed to write any more production code than is sufficient to pass the one failing unit test.**
 
-1. **RED** — Write the smallest test that expresses the next bit of behavior. Run it. Confirm it fails, and that it fails for the *expected* reason (assertion/compile error you predicted) — not some unrelated error.
-2. **GREEN** — Write the minimum production code to make that test pass. Nothing more. Run the test; confirm it passes.
+These laws lock you into a tight cycle measured in seconds, not minutes: you write a fragment of a test, it fails to compile (Law 2 — that counts), you write just enough production code to compile and fail the assertion, then just enough to pass (Laws 1 & 3), and refactor. You are never more than a few seconds from a passing test.
+
+In red → green → refactor terms:
+
+1. **RED** — Write only as much test as is needed to fail (a missing type that won't compile is a sufficient failure). Run it; confirm it fails for the expected reason.
+2. **GREEN** — Write only as much production code as makes that one failing test pass. Nothing more.
 3. **REFACTOR** — Clean up production and test code while keeping the test green.
 
 Then repeat for the next behavior.

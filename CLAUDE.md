@@ -4,9 +4,13 @@ A Farm Management Information System. Greenfield, built in phases (see `docs/sup
 
 ## Test-Driven Development is mandatory
 
-**Write a failing test before the production code that makes it pass. Always. Every layer.**
+Follow Robert C. Martin's **Three Laws of TDD** (<http://butunclebob.com/ArticleS.UncleBob.TheThreeRulesOfTdd>):
 
-Red → green → refactor: write the smallest failing test → run it and confirm it fails for the expected reason → write the minimum code to pass → run it green → refactor. Never write a handler, controller, validator, or any production type before its test exists and has been seen to fail. This includes **Api controllers/endpoints** — write the failing integration test through the real HTTP pipeline *first*, then the controller. "Implemented it, then added tests" is a violation.
+1. No production code except to make a failing unit test pass.
+2. No more of a test than is sufficient to fail — a compilation failure is a failure.
+3. No more production code than is sufficient to pass the one failing test.
+
+This is a tight, seconds-long cycle: a fragment of a failing test → just enough code to pass → refactor. Never write a handler, controller, validator, or any production type before its test exists and has been seen to fail. This includes **Api controllers/endpoints** — write the failing integration test through the real HTTP pipeline *first*, then the controller. "Implemented it, then added tests" is a violation.
 
 Full rule: [`docs/conventions/test-driven-development.md`](docs/conventions/test-driven-development.md).
 
