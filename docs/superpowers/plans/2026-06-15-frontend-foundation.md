@@ -84,11 +84,10 @@ export default defineConfig({
 In `frontend/tsconfig.app.json` (the project that type-checks `src/`), add to `compilerOptions`:
 
 ```json
-"baseUrl": ".",
 "paths": { "@/*": ["./src/*"] }
 ```
 
-> Type-check via `pnpm typecheck` so the `@/*` paths resolve (the bare `tsc --noEmit` may use the solution `tsconfig.json` and miss them). Use that form wherever this plan says "typecheck".
+> No `baseUrl` — it's deprecated in TypeScript 6 (`TS5101`) and unnecessary; TS resolves `paths` relative to this tsconfig's own directory (`frontend/`), so `@/*` → `frontend/src/*`. Type-check via `pnpm typecheck` (it targets `tsconfig.app.json` so the paths resolve).
 
 - [ ] **Step 4: Create the test setup file**
 
@@ -116,11 +115,24 @@ describe('toolchain', () => {
 
 Run: `zsh -lc 'pnpm test'` → 1 passing test.
 
-- [ ] **Step 6: Remove template cruft**
+- [ ] **Step 6: Strip the template to a clean, buildable shell**
+
+Delete the template `App`, its styles, and the asset folder so nothing imports removed files, and render a placeholder from `main.tsx` (the real `App` is built in Task 14). Remove whatever asset files the installed Vite template generated:
 
 ```bash
-cd frontend && rm -f src/App.css src/index.css src/assets/react.svg public/vite.svg
+cd frontend && rm -rf src/App.tsx src/App.css src/index.css src/assets
 ```
+
+Replace `frontend/src/main.tsx`:
+
+```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+
+createRoot(document.getElementById('root')!).render(<StrictMode><div>modern-fmis</div></StrictMode>);
+```
+
+After this, `pnpm typecheck` must pass (no imports of removed files) and `pnpm build` must succeed.
 
 - [ ] **Step 7: Commit**
 
