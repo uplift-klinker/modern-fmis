@@ -5,6 +5,7 @@
 ## Toolchain
 
 - **Node 24 (LTS)** — `.nvmrc` + `engines`. **pnpm 11.7.0** — Corepack-pinned via `packageManager` in `package.json`. Run frontend commands from `frontend/`.
+- **Commands go through `package.json` scripts**, never raw tool invocations: `pnpm test` (`vitest run`), `pnpm typecheck` (`tsc -p tsconfig.app.json --noEmit`), `pnpm build`, `pnpm dev`, `pnpm lint`. Run a subset of tests with `pnpm test <path>`.
 - React + TypeScript + **Vite**. UI: **MUI**. State/data: **Redux Toolkit + RTK Query**. Forms: **TanStack Form** (`@tanstack/react-form`). Auth: **Auth0 React SDK**. Contracts: hand-written **Zod**. Tests: **Vitest + Testing Library + MSW**; data via **`@faker-js/faker`**.
 
 ## Path aliases

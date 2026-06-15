@@ -56,8 +56,12 @@ printf '24\n' > .nvmrc
 zsh -lc 'npm pkg set packageManager=pnpm@11.7.0'
 zsh -lc 'npm pkg set engines.node=">=24 <25"'
 zsh -lc 'pnpm add -D vitest@4 jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom'
+zsh -lc 'npm pkg set scripts.test="vitest run"'
+zsh -lc 'npm pkg set scripts.typecheck="tsc -p tsconfig.app.json --noEmit"'
 zsh -lc 'pnpm install'
 ```
+
+All later commands use these scripts — `pnpm test [path]` and `pnpm typecheck` — never raw `pnpm vitest`/`pnpm tsc`. (`pnpm dev`, `pnpm build`, `pnpm lint` come from the Vite template.)
 
 - [ ] **Step 2: Configure Vitest + the `@/` alias in `vite.config.ts`**
 
@@ -84,7 +88,7 @@ In `frontend/tsconfig.app.json` (the project that type-checks `src/`), add to `c
 "paths": { "@/*": ["./src/*"] }
 ```
 
-> Type-check via `pnpm exec tsc -p tsconfig.app.json --noEmit` so the `@/*` paths resolve (the bare `tsc --noEmit` may use the solution `tsconfig.json` and miss them). Use that form wherever this plan says "typecheck".
+> Type-check via `pnpm typecheck` so the `@/*` paths resolve (the bare `tsc --noEmit` may use the solution `tsconfig.json` and miss them). Use that form wherever this plan says "typecheck".
 
 - [ ] **Step 4: Create the test setup file**
 
@@ -110,7 +114,7 @@ describe('toolchain', () => {
 });
 ```
 
-Run: `zsh -lc 'pnpm vitest run'` → 1 passing test.
+Run: `zsh -lc 'pnpm test'` → 1 passing test.
 
 - [ ] **Step 6: Remove template cruft**
 
@@ -149,7 +153,7 @@ mkdir -p app shared/config shared/auth shared/api \
 
 - [ ] **Step 3: Verify**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → smoke passes; no type errors.
+Run: `zsh -lc 'pnpm test && pnpm typecheck'` → smoke passes; no type errors.
 
 - [ ] **Step 4: Commit**
 
@@ -189,7 +193,7 @@ describe('AppConfigSchema', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/config'` → FAIL (module missing).
+Run: `zsh -lc 'pnpm test src/shared/config'` → FAIL (module missing).
 
 - [ ] **Step 3: Implement the schema + loader (no parse wrapper)**
 
@@ -220,7 +224,7 @@ export async function loadAppConfig(): Promise<AppConfig> {
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/config'` → PASS (2).
+Run: `zsh -lc 'pnpm test src/shared/config'` → PASS (2).
 
 - [ ] **Step 5: Self-loading `ConfigProvider` + `useConfig`**
 
@@ -311,7 +315,7 @@ describe('authSlice', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/auth/authSlice'` → FAIL.
+Run: `zsh -lc 'pnpm test src/shared/auth/authSlice'` → FAIL.
 
 - [ ] **Step 3: Implement `API_TAGS`**
 
@@ -414,7 +418,7 @@ export type AppDispatch = AppStore['dispatch'];
 
 - [ ] **Step 7: Run it (green) + typecheck**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/auth/authSlice && pnpm tsc --noEmit'` → PASS; no type errors. (`baseApi` imports `RootState` as a type only, so the `store ↔ baseApi` reference is erased at runtime.)
+Run: `zsh -lc 'pnpm test src/shared/auth/authSlice && pnpm typecheck'` → PASS; no type errors. (`baseApi` imports `RootState` as a type only, so the `store ↔ baseApi` reference is erased at runtime.)
 
 - [ ] **Step 8: Commit**
 
@@ -494,7 +498,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 - [ ] **Step 2: Typecheck + commit**
 
-Run: `zsh -lc 'pnpm tsc --noEmit'`
+Run: `zsh -lc 'pnpm typecheck'`
 
 ```bash
 git add frontend/ && git commit -m "Add auth seam (useAuth/AuthProvider) that dispatches the token into the store"
@@ -534,7 +538,7 @@ describe('RequestCapture', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'` → FAIL.
+Run: `zsh -lc 'pnpm test src/testing/requestCapture'` → FAIL.
 
 - [ ] **Step 3: Implement `RequestCapture` as a class**
 
@@ -564,7 +568,7 @@ export class RequestCapture<TBody> {
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'` → PASS (2).
+Run: `zsh -lc 'pnpm test src/testing/requestCapture'` → PASS (2).
 
 - [ ] **Step 5: Shared test config constant**
 
@@ -694,7 +698,7 @@ export function renderWithProviders(ui: ReactElement, options: RenderOptions = {
 
 - [ ] **Step 9: Run the suite + commit**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → green.
+Run: `zsh -lc 'pnpm test && pnpm typecheck'` → green.
 
 ```bash
 git add frontend/ && git commit -m "Add testing harness: TestingApiServer (MSW), RequestCapture class, renderWithProviders"
@@ -745,7 +749,7 @@ describe('client schemas', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas'` → FAIL.
+Run: `zsh -lc 'pnpm test src/features/clients/schemas'` → FAIL.
 
 - [ ] **Step 3: Implement the schemas (PascalCase, object split before refine)**
 
@@ -784,7 +788,7 @@ export type CreateClientRequest = z.infer<typeof CreateClientRequestSchema>;
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas'` → PASS (5).
+Run: `zsh -lc 'pnpm test src/features/clients/schemas'` → PASS (5).
 
 ```bash
 git add frontend/ && git commit -m "Add Client Zod schemas (PascalCase) with the email-or-phone rule"
@@ -824,7 +828,7 @@ describe('ModelFactory', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'` → FAIL.
+Run: `zsh -lc 'pnpm test src/testing/modelFactory'` → FAIL.
 
 - [ ] **Step 3: Implement `ModelFactory`**
 
@@ -857,7 +861,7 @@ export const ModelFactory = { createClient, createClientList, createClientReques
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'` → PASS (3).
+Run: `zsh -lc 'pnpm test src/testing/modelFactory'` → PASS (3).
 
 - [ ] **Step 5: Add client endpoint setups to `TestingApiServer`**
 
@@ -898,7 +902,7 @@ Add these methods to the exported `TestingApiServer` object (alongside `start`/`
 
 - [ ] **Step 6: Run the suite + commit**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → green.
+Run: `zsh -lc 'pnpm test && pnpm typecheck'` → green.
 
 ```bash
 git add frontend/ && git commit -m "Add faker ModelFactory and client endpoint setups on TestingApiServer"
@@ -938,7 +942,7 @@ describe('clientsApi', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/api'` → FAIL.
+Run: `zsh -lc 'pnpm test src/features/clients/api'` → FAIL.
 
 - [ ] **Step 3: Implement the slice (inject into the singleton, `API_TAGS`)**
 
@@ -969,7 +973,7 @@ export const clientsApi = api.injectEndpoints({
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/api && pnpm tsc --noEmit'` → PASS.
+Run: `zsh -lc 'pnpm test src/features/clients/api && pnpm typecheck'` → PASS.
 
 ```bash
 git add frontend/ && git commit -m "Add clients RTK Query api slice (get/list/create) using API_TAGS"
@@ -1020,7 +1024,7 @@ describe('ClientsListPage', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientsListPage'` → FAIL.
+Run: `zsh -lc 'pnpm test src/features/clients/pages/ClientsListPage'` → FAIL.
 
 - [ ] **Step 3: Implement the page (with a CreateClientDialog stub)**
 
@@ -1079,7 +1083,7 @@ export function CreateClientDialog(_: { open: boolean; onClose: () => void }) {
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientsListPage'` → PASS (3).
+Run: `zsh -lc 'pnpm test src/features/clients/pages/ClientsListPage'` → PASS (3).
 
 ```bash
 git add frontend/ && git commit -m "Add ClientsListPage (list, loading, error) with a CreateClientDialog stub"
@@ -1154,7 +1158,7 @@ describe('CreateClientDialog', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/dialogs/CreateClientDialog'` → FAIL (stub renders nothing).
+Run: `zsh -lc 'pnpm test src/features/clients/dialogs/CreateClientDialog'` → FAIL (stub renders nothing).
 
 - [ ] **Step 3: Implement the dialog with TanStack Form**
 
@@ -1239,7 +1243,7 @@ export function CreateClientDialog({ open, onClose }: { open: boolean; onClose: 
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/dialogs/CreateClientDialog'` → PASS (3).
+Run: `zsh -lc 'pnpm test src/features/clients/dialogs/CreateClientDialog'` → PASS (3).
 
 ```bash
 git add frontend/ && git commit -m "Add CreateClientDialog (TanStack Form + Zod, request capture, success navigation, 400 surfacing)"
@@ -1290,7 +1294,7 @@ describe('ClientDetailPage', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientDetailPage'` → FAIL.
+Run: `zsh -lc 'pnpm test src/features/clients/pages/ClientDetailPage'` → FAIL.
 
 - [ ] **Step 3: Implement the page**
 
@@ -1322,7 +1326,7 @@ export function ClientDetailPage() {
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientDetailPage'` → PASS (2).
+Run: `zsh -lc 'pnpm test src/features/clients/pages/ClientDetailPage'` → PASS (2).
 
 ```bash
 git add frontend/ && git commit -m "Add ClientDetailPage (details + not-found state)"
@@ -1378,7 +1382,7 @@ describe('RequireAuth', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'` → FAIL.
+Run: `zsh -lc 'pnpm test src/routes/RequireAuth'` → FAIL.
 
 - [ ] **Step 3: Implement the guard + pages**
 
@@ -1440,7 +1444,7 @@ export function UnauthorizedPage() {
 
 - [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'` → PASS (3).
+Run: `zsh -lc 'pnpm test src/routes/RequireAuth'` → PASS (3).
 
 ```bash
 git add frontend/ && git commit -m "Add RequireAuth guard (login returnTo, error→/unauthorized) and welcome/unauthorized pages"
@@ -1478,7 +1482,7 @@ describe('app routes', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/app/router'` → FAIL.
+Run: `zsh -lc 'pnpm test src/app/router'` → FAIL.
 
 - [ ] **Step 3: Layout, routes, configured app, app, main**
 
@@ -1604,7 +1608,7 @@ createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictM
 
 - [ ] **Step 4: Run it (green), full suite, typecheck**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → all green.
+Run: `zsh -lc 'pnpm test && pnpm typecheck'` → all green.
 
 - [ ] **Step 5: Commit**
 
@@ -1657,7 +1661,7 @@ describe('client contract matches the backend OpenAPI document', () => {
 
 - [ ] **Step 3: Run it**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas/clientContract'` → PASS (schema property names equal the OpenAPI schema property names). A failure means the schemas drifted from the backend — fix the Zod schema (backend is the source of truth). (Requires `resolveJsonModule` — Vite's default tsconfig has it.)
+Run: `zsh -lc 'pnpm test src/features/clients/schemas/clientContract'` → PASS (schema property names equal the OpenAPI schema property names). A failure means the schemas drifted from the backend — fix the Zod schema (backend is the source of truth). (Requires `resolveJsonModule` — Vite's default tsconfig has it.)
 
 - [ ] **Step 4: Commit**
 
@@ -1747,7 +1751,7 @@ git commit -m "Add frontend Dockerfile (build once, nginx-served) and docker-com
 
 ## Done criteria
 
-- `cd frontend && zsh -lc 'pnpm vitest run'` passes all tests; `pnpm tsc --noEmit` clean; `pnpm build` produces `dist/`.
+- `cd frontend && zsh -lc 'pnpm test'` passes all tests; `pnpm typecheck` clean; `pnpm build` produces `dist/`.
 - The Client UI works against the backend contract: list (loading/error), create dialog (TanStack Form + Zod incl. email-or-phone, request carries the data, success → detail, 400 surfaced), detail (with not-found).
 - **No global mutable holders**: API base URL and Auth0 token flow through the store (`createStore(config)` + `AuthProvider` dispatching the token); `baseQuery` reads both from state.
 - Self-loading `ConfigProvider` (Zod-validated, optional `config` prop for tests); thin `main.tsx`; provider order `Provider → Auth0Provider → AuthProvider → Router`.
