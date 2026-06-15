@@ -8,7 +8,7 @@ namespace Fmis.Api.Tests.Clients;
 
 public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisApiFactory>
 {
-    private HttpClient AuthenticatedClient()
+    private HttpClient CreateAuthenticatedClient()
     {
         var client = factory.CreateClient();
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Test", "user");
@@ -18,7 +18,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task Create_then_get_returns_the_created_client()
     {
-        var client = AuthenticatedClient();
+        var client = CreateAuthenticatedClient();
 
         var create = await client.PostAsJsonAsync("/clients",
             new CreateClientRequestModel("Acme Farms", "ops@acme.example", "555-0100"));
@@ -38,7 +38,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task List_returns_created_clients_with_total_count()
     {
-        var client = AuthenticatedClient();
+        var client = CreateAuthenticatedClient();
         await client.PostAsJsonAsync("/clients",
             new CreateClientRequestModel("Bedrock Ag", "info@bedrock.example", null));
 
@@ -52,7 +52,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task Get_unknown_id_returns_404()
     {
-        var client = AuthenticatedClient();
+        var client = CreateAuthenticatedClient();
 
         var response = await client.GetAsync($"/clients/{Guid.NewGuid()}");
 
@@ -62,7 +62,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task Create_with_blank_name_returns_400()
     {
-        var client = AuthenticatedClient();
+        var client = CreateAuthenticatedClient();
 
         var response = await client.PostAsJsonAsync("/clients",
             new CreateClientRequestModel("", "ops@acme.example", null));
@@ -73,7 +73,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
     [Fact]
     public async Task Create_without_email_or_phone_returns_400()
     {
-        var client = AuthenticatedClient();
+        var client = CreateAuthenticatedClient();
 
         var response = await client.PostAsJsonAsync("/clients",
             new CreateClientRequestModel("Acme Farms", null, null));

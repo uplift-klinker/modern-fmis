@@ -22,6 +22,10 @@ Make a type's role obvious from its name:
 | Core command | `Command` | `CreateClientCommand` | `Fmis.Core/<Area>/<Feature>/` |
 | Core query | `Query` | `GetClientQuery`, `ListClientsQuery` | `Fmis.Core/<Area>/<Feature>/` |
 
+## Method names contain a verb
+
+Every method name must contain a verb describing what it does — methods are actions. `CreateAuthenticatedClient()`, not `AuthenticatedClient()`; `BuildOptions()`, not `Options()`. Boolean predicates may use `Is`/`Has`/`Can` (e.g. `HasContactMethod`). A noun- or adjective-only method name is a smell that the name isn't saying what happens.
+
 ## Result types
 
 **Reads of an entity share a canonical `<Entity>Result`** (e.g. `ClientResult`): get-by-id returns it singular, list returns `ListResult<ClientResult>`. The shared read result lives at the **area** level (`Fmis.Core/<Area>/`), not in a feature folder, since multiple read features use it. Don't create a separate identical `GetXResult` / `ListXResult` per read — that's duplication.
