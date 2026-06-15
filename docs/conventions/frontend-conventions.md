@@ -5,6 +5,7 @@
 ## Toolchain
 
 - **Node 24 (LTS)** — `.nvmrc` + `engines`. **pnpm 11.7.0** — Corepack-pinned via `packageManager` in `package.json`. Run frontend commands from `frontend/`.
+- **Exact, pinned dependency versions** — every entry in `package.json` `dependencies`/`devDependencies` is an exact version with **no `^` or `~` range** (the `engines.node` compatibility range is the lone exception). Upgrades are deliberate: bump the spec and re-pin to the resolved version. This keeps installs reproducible and the manifest honest about what's actually running, rather than leaning entirely on the lockfile.
 - **Commands go through `package.json` scripts**, never raw tool invocations: `pnpm test` (`vitest run`), `pnpm typecheck` (`tsc -p tsconfig.app.json --noEmit`), `pnpm build`, `pnpm dev`, `pnpm lint`. Run a subset of tests with `pnpm test <path>`.
 - React + TypeScript + **Vite**. UI: **MUI**. State/data: **Redux Toolkit + RTK Query**. Forms: **TanStack Form** (`@tanstack/react-form`). Auth: **Auth0 React SDK**. Contracts: hand-written **Zod**. Tests: **Vitest + Testing Library + MSW**; data via **`@faker-js/faker`**.
 
@@ -54,7 +55,7 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 
 - Auth0 is wrapped behind our own **`useAuth()` seam** (one file: `AuthContext` + `useAuth` + `AuthProvider`). Production uses Auth0; tests inject an `AuthContext` value (no module mocking).
 - **`AuthProvider` sits *inside* the Redux `Provider`** so it can dispatch. It reads Auth0, **dispatches the access token (and refreshes) into the `auth` slice**, and provides the `useAuth` context. The api reads the current token from state — never a stale one.
-- Provider order: `ConfigProvider` → `ConfiguredApp` (`useConfig` → `createStore(config)`) → `<Provider store>` → `<Auth0Provider>` → `<AuthProvider>` → `<RouterProvider>`.
+- Provider order: **`<ThemeProvider theme={appTheme}>` + `<CssBaseline>` (outermost — the base of the stack)** → `ConfigProvider` → `ConfiguredApp` (`useConfig` → `createStore(config)`) → `<Provider store>` → `<Auth0Provider>` → `<AuthProvider>` → `<RouterProvider>`. ThemeProvider sits at the base (the theme is static, independent of runtime config) so the config-loading spinner and error fallback are themed too.
 - Routing: React Router; protected routes behind a `<RequireAuth>` guard; `/unauthorized` is the only public route. The guard captures the requested URL as `appState.returnTo` and `onRedirectCallback` restores it — **deep-linking must work** (a link to `/clients/:id` returns there after login, not to a generic landing).
 
 ## Forms
@@ -64,13 +65,15 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 ## UI
 
 - **MUI.** Small entities use a plain MUI `List` (primary + secondary text), not `@mui/x-data-grid` (reserved for genuinely tabular, high-volume data).
+- **One shared theme** — `appTheme` (`createTheme()`) in `src/shared/theme`. `<ThemeProvider theme={appTheme}>` + `<CssBaseline>` wrap the whole app at the **base** of the provider stack, and the test render mirrors this. Themed MUI components (e.g. the config-loading `CircularProgress`, transition components) need the theme in tests too.
+- **MUI under Vitest needs exactly one dep inlined** — `test.server.deps.inline: ['@mui/material']` in `vite.config.ts`. MUI's externalized ESM does a directory import (`react-transition-group/TransitionGroupContext`) that Node's native resolver rejects; inlining `@mui/material` routes that module through Vite's resolver, which handles it. Verified minimal — `deps.optimizer`, `@mui/icons-material`, and inlining `react-transition-group` are **not** needed (the bad import lives in `@mui/material`, so only inlining *that* helps). Don't re-add them.
 - **Create via dialog**, then **navigate to the created item's detail** on success. List and detail are routes (deep-linkable); create is a dialog over the list.
 
 ## Testing — behavior-first, real tree, stub only the edge
 
 - **Behavior, not implementation.** No shallow rendering, no asserting on state/props, no mocking our own components/modules.
 - **Query by role/label/text** (`getByRole`/`getByLabelText`/`getByText`); `getByTestId` is a last resort. Same vocabulary as Playwright locators.
-- **Render the real tree in real providers** via the shared **`renderWithProviders()`** (`createStore(TEST_CONFIG)`, dispatches the test token when authenticated, supplies the `AuthContext` value, `<ConfigProvider config={TEST_CONFIG}>`, MUI theme, memory router).
+- **Render the real tree in real providers** via the shared **`renderWithProviders()`** — `<ThemeProvider theme={appTheme}>` + `<CssBaseline>` (mirroring the app's base), `<ConfigProvider config={…}>` (a `ModelFactory.createAppConfig()` value by default), the store (`createStore(config)`), the test token when authenticated, the `AuthContext` value, and a memory router. (The store/auth/router layers are added to it as those pieces land.) A lighter **`ThemedShell`** (`ThemeProvider` + `CssBaseline` only) is the `wrapper` for testing a provider in isolation — e.g. `ConfigProvider`'s own loading/error/self-load tests, which can't be wrapped in another `ConfigProvider`.
 - **Stub only the network edge with MSW.** The whole stack runs for real; MSW is the real network handler. Auth0 is the one external seam (the test `AuthContext` value).
 - `userEvent` (not `fireEvent`); `findBy*`/`waitFor` for async. **No snapshot tests.**
 - **Schema-validation tests use `safeParse`** — assert `Schema.safeParse(value).success` is `true`/`false`, not `expect(() => Schema.parse(value)).toThrow()`. When the parsed value is needed, use `result.data` or a direct `.parse()`.
@@ -78,9 +81,9 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 ### Centralized harness (`src/testing/`)
 
 - **`renderWithProviders()`** — real providers, synchronous, using `TEST_CONFIG`.
-- **`TestingApiServer`** — config-aware MSW wrapper: `start()`/`reset()`/`stop()`; per-endpoint setup methods (`setupGetClientList`, `setupCreateClient`, …) that build URLs from `TEST_CONFIG`. Every endpoint takes `SetupEndpointOptions<TBody>` = `{ delayMs?, status?, capture? }` (loading, error, and request-capture testing) plus endpoint-specific response data. No test writes raw `server.use(...)`.
+- **`TestingApiServer`** — config-aware MSW wrapper: `start()`/`reset()`/`stop()`; per-endpoint setup methods (`setupGetClientList`, `setupCreateClient`, …) that build URLs from `TEST_CONFIG`. Every endpoint takes `SetupEndpointOptions<TBody>` = `{ delayMs?, status?, capture? }` (loading, error, and request-capture testing) plus endpoint-specific response data. No test writes raw `server.use(...)`. `setupConfig(overrides?, options?)` serves the runtime **`/config.json`** — it builds a full, valid config via `ModelFactory.createAppConfig(overrides)` (no-arg → a standard config; pass a partial to pin the fields you assert on) and returns it. **Config-load behavior is tested through this MSW endpoint — never by stubbing `fetch`.**
 - **`RequestCapture<TBody>`** — a **class** (`new RequestCapture<TBody>()`) exposing `lastRequest` / `calls` / `wasCalled` / `callCount` getters and a `record(...)` method; each endpoint setup types its `capture` to that endpoint's request body. Used to assert requests carry the expected payload.
-- **`ModelFactory`** — typed builders (`createClient(partial?)`, `createClientList(n)`, …) using **faker** for valid defaults merged with the caller's partial; types inferred from the Zod schemas. A test asserts only on fields it set.
+- **`ModelFactory`** — typed builders (`createAppConfig(overrides?)`, `createClient(partial?)`, `createClientList(n)`, …) using **faker** for valid defaults merged with the caller's partial; types inferred from the Zod schemas; builders `Schema.parse(...)` the result so a factory can only ever yield schema-valid data. Overrides deep-merge nested objects (e.g. `createAppConfig({ auth: { domain } })` keeps the faker-generated `clientId`/`audience`). A test asserts only on fields it set. **Each builder is a standalone named `function` assembled onto the factory object** (`export const ModelFactory = { createAppConfig, createClient, … }`) — not an inline object-literal method.
 
 ### Contract & E2E
 

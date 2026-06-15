@@ -1,0 +1,53 @@
+import { setupServer } from 'msw/node';
+import { http, HttpResponse, delay, type HttpHandler } from 'msw';
+import { ModelFactory, type AppConfigOverrides } from '@/testing/ModelFactory';
+import type { AppConfig } from '@/shared/config/appConfig';
+import type { RequestCapture } from '@/testing/requestCapture';
+
+export interface SetupEndpointOptions<TBody = never> {
+  delayMs?: number;
+  status?: number;
+  capture?: RequestCapture<TBody>;
+}
+
+const server = setupServer();
+
+export async function applyCommon<TBody>(
+  request: Request,
+  options: SetupEndpointOptions<TBody>,
+): Promise<void> {
+  if (options.delayMs) {
+    await delay(options.delayMs);
+  }
+  if (options.capture) {
+    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    const body = (hasBody ? await request.clone().json() : undefined) as TBody;
+    const url = new URL(request.url);
+    options.capture.record({
+      body,
+      headers: request.headers,
+      url,
+      searchParams: url.searchParams,
+    });
+  }
+}
+
+export const TestingApiServer = {
+  start: () => server.listen({ onUnhandledRequest: 'error' }),
+  reset: () => server.resetHandlers(),
+  stop: () => server.close(),
+  use: (...handlers: HttpHandler[]) => server.use(...handlers),
+  setupConfig(
+    overrides: AppConfigOverrides = {},
+    options: SetupEndpointOptions = {},
+  ): AppConfig {
+    const config = ModelFactory.createAppConfig(overrides);
+    server.use(
+      http.get('/config.json', async ({ request }) => {
+        await applyCommon(request, options);
+        return HttpResponse.json(config, { status: options.status ?? 200 });
+      }),
+    );
+    return config;
+  },
+};
