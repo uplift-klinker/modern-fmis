@@ -14,8 +14,13 @@ This is a tight, seconds-long cycle: a fragment of a failing test → just enoug
 
 Full rule: [`docs/conventions/test-driven-development.md`](docs/conventions/test-driven-development.md).
 
+## Architecture (one-paragraph orientation)
+
+Modular monolith, vertical slices. Backend dependency rule: `Api → Core, Models`; **Core depends outward on nothing** (no HTTP, no DTO knowledge); `Models` is the external contract (leaf). Inside Core, one folder per feature (command/query, result, validator, handler); persistence (EF Core/Npgsql) lives in Core; handlers depend on `DbContext` directly and are invoked via an in-house command/query bus (the command bus validates first). MVC controllers at the edge; thin `Program.cs`. Stack: .NET 10, PostgreSQL+PostGIS, FluentValidation, React/TS + hand-written Zod (no codegen), Auth0 (authentication only), Azure + Pulumi (C#). Full detail + reasoning + phased roadmap: [`docs/conventions/architecture.md`](docs/conventions/architecture.md).
+
 ## Conventions (read these — they are rules, not suggestions)
 
+- [`docs/conventions/architecture.md`](docs/conventions/architecture.md) — architecture, stack (with reasoning), monorepo layout, auth, infra, roadmap.
 - [`docs/conventions/test-driven-development.md`](docs/conventions/test-driven-development.md) — TDD (above).
 - [`docs/conventions/backend-code-conventions.md`](docs/conventions/backend-code-conventions.md) — `*Entity`/`*Model`/`*Result` naming; shared read results; generic `ListResult`/`ListResultModel`; in-house command/query bus (no MediatR) with reflection discovery and command validation; MVC controllers; thin `Program.cs` with service/pipeline extensions; **no code comments** (self-documenting names instead); tests through the bus/HTTP with no mocks, seeded via commands; local dotnet tools; `InMemoryCoreTestBase`.
 - [`docs/conventions/git-workflow.md`](docs/conventions/git-workflow.md) — append-only history: **new commits only, never amend or force-push.**
