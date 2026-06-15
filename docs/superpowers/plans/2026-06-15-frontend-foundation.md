@@ -2,15 +2,15 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Build the React/TypeScript frontend walking skeleton — the authenticated **Client UI** (list, create dialog, detail) wired to the existing backend — establishing the runtime-config, app-shell, routing/auth, RTK Query data layer, feature-slice, and centralized testing patterns every later frontend feature copies.
+**Goal:** Build the React/TypeScript frontend walking skeleton — the authenticated **Client UI** (list, create dialog, detail) wired to the existing backend — establishing the runtime-config, store/auth, RTK Query data layer, TanStack-Form, feature-slice, and centralized testing patterns every later frontend feature copies.
 
-**Architecture:** Vite SPA. Production code is feature-sliced (`features/clients/…`); test code is centralized (`src/testing/`). The build is immutable; runtime settings come from a Zod-validated `config.json` fetched before render. Auth0 is wrapped behind our own `useAuth()` seam so it's testable. RTK Query is the data layer; React Router v7 with an auth guard that preserves deep-link `returnTo`. Tests are behavior-first (Testing Library role queries) and stub only the network edge with MSW via a config-aware `TestingApiServer`; data is built with a faker `ModelFactory`.
+**Architecture:** Vite SPA. Production code is feature-sliced (`features/<f>/{api,schemas,pages,dialogs,components}`); test code is centralized (`src/testing/`). Imports use a `@/` → `src/` alias (test support via `@/testing/…`). The build is immutable; the `ConfigProvider` loads a Zod-validated `config.json` at runtime. There are **no global mutable holders**: the API base URL and the Auth0 access token flow through the Redux store — `createStore(config)` seeds a `config` slice, and the `AuthProvider` (mounted inside Redux) dispatches the token into an `auth` slice; the RTK Query `baseQuery` reads both from state. React Router v7 with an auth guard that preserves deep-link `returnTo`. Forms use TanStack Form validated by the slice's Zod schema. Tests are behavior-first and stub only the network edge with MSW via a config-aware `TestingApiServer`; data is built with a faker `ModelFactory`.
 
-**Tech Stack:** React 19, Vite 8, TypeScript 6, Node 24 LTS + pnpm 11.7.0 (Corepack), MUI 9, Redux Toolkit 2 + RTK Query, React Router 7, `@auth0/auth0-react` 2, Zod 4, Vitest 4 + Testing Library + `@testing-library/jest-dom` + `@testing-library/user-event`, MSW 2, `@faker-js/faker` 10.
+**Tech Stack:** React 19, Vite 8, TypeScript 6, Node 24 LTS + pnpm 11.7.0 (Corepack), MUI 9, Redux Toolkit 2 + RTK Query, React Router 7, `@auth0/auth0-react` 2, `@tanstack/react-form` 1, Zod 4, Vitest 4 + Testing Library + `@testing-library/jest-dom` + `@testing-library/user-event`, MSW 2, `@faker-js/faker` 10.
 
-**Conventions (from `docs/conventions/`):** TDD — failing test first, every behavior ([`test-driven-development.md`](../../conventions/test-driven-development.md)); [`frontend-conventions.md`](../../conventions/frontend-conventions.md); no code comments; method names contain a verb; new commits only (no amend/force-push). Run frontend commands from `frontend/` via `zsh -lc`.
+**Conventions:** TDD — failing test first, every behavior ([`test-driven-development.md`](../../conventions/test-driven-development.md)); [`frontend-conventions.md`](../../conventions/frontend-conventions.md) (PascalCase schemas, no parse wrappers, `UPPER_SNAKE_CASE` constants, `API_TAGS`, `safeParse` failure tests, config/token-through-store, feature subfolders, `@/` aliases); no code comments; method names contain a verb; new commits only. Run frontend commands from `frontend/` via `zsh -lc`.
 
-**Out of scope (deferred to the infra/Auth0 phase):** Playwright E2E and genuinely-live login + authenticated API calls (need a real Auth0 tenant). Farm/Field/activities/mapping UI, authorization.
+**Out of scope (deferred to the infra/Auth0 phase):** Playwright E2E and live login + authenticated API calls (need a real Auth0 tenant). Farm/Field/activities/mapping UI, authorization.
 
 ---
 
@@ -18,49 +18,36 @@
 
 ```
 frontend/
-├─ .nvmrc                      24
-├─ package.json                packageManager: pnpm@11.7.0; engines.node
-├─ vite.config.ts              Vite + Vitest (jsdom, setupFiles)
-├─ tsconfig*.json
-├─ index.html
-├─ public/config.json          local-dev default runtime config
-├─ Dockerfile
+├─ .nvmrc · package.json (packageManager pnpm@11.7.0, engines.node) · index.html
+├─ vite.config.ts (Vite + Vitest + @/ alias) · tsconfig.app.json (paths)
+├─ public/config.json · Dockerfile · nginx.conf · .dockerignore
 └─ src/
-   ├─ main.tsx                 bootstrap: load config → providers → router
+   ├─ main.tsx                     trivial: render <App/>
    ├─ app/
-   │  ├─ store.ts              configureStore + RTK Query api
-   │  ├─ router.tsx            createBrowserRouter route table
-   │  └─ App.tsx               provider composition (given a loaded config)
+   │  ├─ App.tsx                   <ConfigProvider><ConfiguredApp/></ConfigProvider>
+   │  ├─ ConfiguredApp.tsx         useConfig → store + Auth0Provider + AuthProvider + router
+   │  ├─ AppLayout.tsx · router.tsx · store.ts
    ├─ shared/
-   │  ├─ config/               appConfigSchema, loadConfig, ConfigProvider/useConfig
-   │  ├─ auth/                  useAuth() seam (Auth0 in prod), AuthProvider, token holder
-   │  └─ api/                   base RTK Query api (fetchBaseQuery + auth token)
+   │  ├─ config/ appConfig.ts (AppConfigSchema, loadAppConfig) · ConfigContext.tsx (ConfigProvider/useConfig)
+   │  ├─ auth/   authSlice.ts · auth.tsx (AuthContext/useAuth/AuthProvider)
+   │  └─ api/    apiTags.ts (API_TAGS) · baseApi.ts (api singleton, state-driven baseQuery)
    ├─ features/clients/
-   │  ├─ clientSchemas.ts       Zod schemas + inferred types
-   │  ├─ clientsApi.ts          RTK Query endpoints (injected)
-   │  ├─ ClientsListPage.tsx
-   │  ├─ CreateClientDialog.tsx
-   │  ├─ ClientDetailPage.tsx
-   │  └─ *.test.tsx             component tests (co-located with the feature)
-   ├─ routes/                   WelcomePage, UnauthorizedPage, RequireAuth
-   └─ testing/                  ALL test support
-      ├─ setup.ts               jest-dom + MSW lifecycle
-      ├─ testConfig.ts          the AppConfig used by tests (one base-URL source of truth)
-      ├─ renderWithProviders.tsx
-      ├─ requestCapture.ts      createRequestCapture / RequestCapture
-      ├─ TestingApiServer.ts    MSW wrapper: start/reset/stop + per-endpoint setups
-      └─ modelFactory.ts        ModelFactory (faker)
+   │  ├─ schemas/  ClientSchemas.ts (+ .test.ts)
+   │  ├─ api/      clientsApi.ts (+ .test.tsx)
+   │  ├─ pages/    ClientsListPage.tsx · ClientDetailPage.tsx (+ tests)
+   │  └─ dialogs/  CreateClientDialog.tsx (+ test)
+   ├─ routes/      RequireAuth.tsx · WelcomePage.tsx · UnauthorizedPage.tsx (+ RequireAuth test)
+   └─ testing/     setup.ts · testConfig.ts (TEST_CONFIG) · requestCapture.ts · TestingApiServer.ts
+                   · modelFactory.ts · renderWithProviders.tsx
 ```
 
 ---
 
-## Task 1: Scaffold the Vite app + test runner
+## Task 1: Scaffold the app, test runner, and `@/` alias
 
-**Files:** `frontend/` (generated), `frontend/.nvmrc`, `frontend/vite.config.ts`, `frontend/src/testing/setup.ts`, `frontend/src/smoke.test.ts`
+**Files:** `frontend/` (generated), `.nvmrc`, `vite.config.ts`, `tsconfig.app.json`, `src/testing/setup.ts`, `src/smoke.test.ts`
 
-- [ ] **Step 1: Scaffold and pin the toolchain**
-
-From the repo root:
+- [ ] **Step 1: Scaffold + pin the toolchain**
 
 ```bash
 zsh -lc 'pnpm create vite@latest frontend --template react-ts'
@@ -68,34 +55,36 @@ cd frontend
 printf '24\n' > .nvmrc
 zsh -lc 'npm pkg set packageManager=pnpm@11.7.0'
 zsh -lc 'npm pkg set engines.node=">=24 <25"'
+zsh -lc 'pnpm add -D vitest@4 jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom'
 zsh -lc 'pnpm install'
 ```
 
-- [ ] **Step 2: Add the test toolchain**
-
-```bash
-cd frontend
-zsh -lc 'pnpm add -D vitest@4 jsdom @testing-library/react @testing-library/user-event @testing-library/jest-dom'
-```
-
-- [ ] **Step 3: Configure Vitest in `vite.config.ts`**
+- [ ] **Step 2: Configure Vitest + the `@/` alias in `vite.config.ts`**
 
 `frontend/vite.config.ts`:
 
 ```ts
+import { fileURLToPath, URL } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
   plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/testing/setup.ts'],
-    css: false,
-  },
+  resolve: { alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) } },
+  test: { environment: 'jsdom', globals: true, setupFiles: ['./src/testing/setup.ts'], css: false },
 });
 ```
+
+- [ ] **Step 3: Add the path alias to TypeScript**
+
+In `frontend/tsconfig.app.json` (the project that type-checks `src/`), add to `compilerOptions`:
+
+```json
+"baseUrl": ".",
+"paths": { "@/*": ["./src/*"] }
+```
+
+> Type-check via `pnpm exec tsc -p tsconfig.app.json --noEmit` so the `@/*` paths resolve (the bare `tsc --noEmit` may use the solution `tsconfig.json` and miss them). Use that form wherever this plan says "typecheck".
 
 - [ ] **Step 4: Create the test setup file**
 
@@ -105,9 +94,9 @@ export default defineConfig({
 import '@testing-library/jest-dom/vitest';
 ```
 
-(The MSW lifecycle is added to this file in Task 5.)
+(The MSW lifecycle is added in Task 6.)
 
-- [ ] **Step 5: Write a smoke test (red → green)**
+- [ ] **Step 5: Smoke test (red → green)**
 
 `frontend/src/smoke.test.ts`:
 
@@ -121,35 +110,31 @@ describe('toolchain', () => {
 });
 ```
 
-Run: `zsh -lc 'pnpm vitest run'`
-Expected: 1 passing test.
+Run: `zsh -lc 'pnpm vitest run'` → 1 passing test.
 
-- [ ] **Step 6: Remove Vite template cruft we will not use**
+- [ ] **Step 6: Remove template cruft**
 
 ```bash
-cd frontend
-rm -f src/App.css src/index.css src/assets/react.svg public/vite.svg
+cd frontend && rm -f src/App.css src/index.css src/assets/react.svg public/vite.svg
 ```
-
-Leave `src/App.tsx`/`src/main.tsx` for now; they are replaced in later tasks.
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Scaffold Vite React-TS frontend with Vitest, pin Node 24 + pnpm 11.7.0"
+git add frontend/ && git commit -m "Scaffold Vite React-TS frontend (Vitest, @/ alias, Node 24 + pnpm 11.7.0)"
 ```
 
 ---
 
-## Task 2: Install runtime dependencies + folder skeleton
+## Task 2: Dependencies + folder skeleton
 
-**Files:** `frontend/package.json` (deps), empty dirs under `frontend/src/`
+**Files:** `frontend/package.json`, empty dirs under `src/`
 
 - [ ] **Step 1: Install runtime + remaining dev deps**
 
 ```bash
 cd frontend
-zsh -lc 'pnpm add react-router-dom@7 @reduxjs/toolkit@2 react-redux@9 @auth0/auth0-react@2 zod@4 @mui/material@9 @emotion/react @emotion/styled'
+zsh -lc 'pnpm add react-router-dom@7 @reduxjs/toolkit@2 react-redux@9 @auth0/auth0-react@2 @tanstack/react-form@1 zod@4 @mui/material@9 @emotion/react @emotion/styled'
 zsh -lc 'pnpm add -D msw@2 @faker-js/faker@10'
 ```
 
@@ -157,63 +142,63 @@ zsh -lc 'pnpm add -D msw@2 @faker-js/faker@10'
 
 ```bash
 cd frontend/src
-mkdir -p app shared/config shared/auth shared/api features/clients routes testing
+mkdir -p app shared/config shared/auth shared/api \
+  features/clients/schemas features/clients/api features/clients/pages features/clients/dialogs features/clients/components \
+  routes testing
 ```
 
-- [ ] **Step 3: Verify the project still builds and tests pass**
+- [ ] **Step 3: Verify**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'`
-Expected: smoke test passes; no type errors.
+Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → smoke passes; no type errors.
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Add frontend runtime deps (MUI, RTK Query, Router, Auth0, Zod) and folder skeleton"
+git add frontend/ && git commit -m "Add frontend deps (MUI, RTK Query, Router, Auth0, TanStack Form, Zod) and feature/test folders"
 ```
 
 ---
 
-## Task 3: Runtime config (schema, loader, context)
+## Task 3: Runtime config (schema, loader, self-loading provider)
 
-**Files:** Create `frontend/src/shared/config/appConfig.ts`, `frontend/src/shared/config/ConfigContext.tsx`, `frontend/public/config.json`; Test `frontend/src/shared/config/appConfig.test.ts`
+**Files:** Create `src/shared/config/appConfig.ts`, `src/shared/config/ConfigContext.tsx`, `public/config.json`; Test `src/shared/config/appConfig.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing test (using `safeParse`)**
 
 `frontend/src/shared/config/appConfig.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import { parseAppConfig } from './appConfig';
+import { AppConfigSchema } from '@/shared/config/appConfig';
 
-describe('parseAppConfig', () => {
+describe('AppConfigSchema', () => {
   it('parses a valid config', () => {
-    const config = parseAppConfig({
+    const result = AppConfigSchema.safeParse({
       apiBaseUrl: 'https://api.example.com',
       auth: { domain: 'tenant.auth0.com', clientId: 'abc', audience: 'https://api' },
     });
-    expect(config.apiBaseUrl).toBe('https://api.example.com');
-    expect(config.auth.domain).toBe('tenant.auth0.com');
+    expect(result.success).toBe(true);
   });
 
-  it('throws when a required field is missing', () => {
-    expect(() => parseAppConfig({ apiBaseUrl: 'https://api.example.com' })).toThrow();
+  it('fails when a required field is missing', () => {
+    const result = AppConfigSchema.safeParse({ apiBaseUrl: 'https://api.example.com' });
+    expect(result.success).toBe(false);
   });
 });
 ```
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/config'`
-Expected: FAIL — `./appConfig` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/shared/config'` → FAIL (module missing).
 
-- [ ] **Step 3: Implement the schema + parser**
+- [ ] **Step 3: Implement the schema + loader (no parse wrapper)**
 
 `frontend/src/shared/config/appConfig.ts`:
 
 ```ts
 import { z } from 'zod';
 
-export const appConfigSchema = z.object({
+export const AppConfigSchema = z.object({
   apiBaseUrl: z.string().min(1),
   auth: z.object({
     domain: z.string().min(1),
@@ -222,38 +207,49 @@ export const appConfigSchema = z.object({
   }),
 });
 
-export type AppConfig = z.infer<typeof appConfigSchema>;
-
-export function parseAppConfig(value: unknown): AppConfig {
-  return appConfigSchema.parse(value);
-}
+export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export async function loadAppConfig(): Promise<AppConfig> {
   const response = await fetch('/config.json', { cache: 'no-store' });
   if (!response.ok) {
     throw new Error(`Failed to load config.json: ${response.status}`);
   }
-  return parseAppConfig(await response.json());
+  return AppConfigSchema.parse(await response.json());
 }
 ```
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/config'`
-Expected: PASS (2 tests).
+Run: `zsh -lc 'pnpm vitest run src/shared/config'` → PASS (2).
 
-- [ ] **Step 5: Create the config context**
+- [ ] **Step 5: Self-loading `ConfigProvider` + `useConfig`**
 
 `frontend/src/shared/config/ConfigContext.tsx`:
 
 ```tsx
-import { createContext, useContext, type ReactNode } from 'react';
-import type { AppConfig } from './appConfig';
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import { CircularProgress } from '@mui/material';
+import { loadAppConfig, type AppConfig } from '@/shared/config/appConfig';
 
 const ConfigContext = createContext<AppConfig | null>(null);
 
-export function ConfigProvider({ config, children }: { config: AppConfig; children: ReactNode }) {
-  return <ConfigContext.Provider value={config}>{children}</ConfigContext.Provider>;
+export function ConfigProvider({ config, children }: { config?: AppConfig; children: ReactNode }) {
+  const [loaded, setLoaded] = useState<AppConfig | null>(config ?? null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (config) return;
+    let active = true;
+    loadAppConfig().then(
+      (value) => active && setLoaded(value),
+      () => active && setFailed(true),
+    );
+    return () => { active = false; };
+  }, [config]);
+
+  if (failed) return <div role="alert">Failed to load application configuration.</div>;
+  if (!loaded) return <CircularProgress aria-label="Loading configuration" />;
+  return <ConfigContext.Provider value={loaded}>{children}</ConfigContext.Provider>;
 }
 
 export function useConfig(): AppConfig {
@@ -265,91 +261,185 @@ export function useConfig(): AppConfig {
 }
 ```
 
-- [ ] **Step 6: Create the local-dev default config**
+- [ ] **Step 6: Local-dev default config**
 
 `frontend/public/config.json`:
 
 ```json
 {
   "apiBaseUrl": "http://localhost:8080",
-  "auth": {
-    "domain": "REPLACE_AT_DEPLOY.auth0.com",
-    "clientId": "REPLACE_AT_DEPLOY",
-    "audience": "https://api.modern-fmis"
-  }
+  "auth": { "domain": "REPLACE_AT_DEPLOY.auth0.com", "clientId": "REPLACE_AT_DEPLOY", "audience": "https://api.modern-fmis" }
 }
 ```
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Add runtime config: Zod schema, loader, and ConfigProvider"
+git add frontend/ && git commit -m "Add runtime config: AppConfigSchema, loadAppConfig, self-loading ConfigProvider"
 ```
 
 ---
 
-## Task 4: Auth seam, base API, and store
+## Task 4: API tags, store slices, base API, and store
 
-**Files:** Create `frontend/src/shared/auth/authToken.ts`, `frontend/src/shared/auth/useAuth.ts`, `frontend/src/shared/auth/AuthProvider.tsx`, `frontend/src/shared/api/baseApi.ts`, `frontend/src/app/store.ts`; Test `frontend/src/shared/auth/authToken.test.ts`
+**Files:** Create `src/shared/api/apiTags.ts`, `src/shared/auth/authSlice.ts`, `src/shared/api/baseApi.ts`, `src/app/store.ts`; Test `src/shared/auth/authSlice.test.ts`
 
-Auth0 is wrapped behind our own `useAuth()` so production uses Auth0 and tests inject a fake. The RTK Query base query reads a token via a small module-level holder that the auth layer keeps current.
+- [ ] **Step 1: Write the failing test for the auth slice**
 
-- [ ] **Step 1: Write the failing test for the token holder**
-
-`frontend/src/shared/auth/authToken.test.ts`:
+`frontend/src/shared/auth/authSlice.test.ts`:
 
 ```ts
-import { describe, it, expect, beforeEach } from 'vitest';
-import { setAccessTokenProvider, getAccessToken } from './authToken';
+import { describe, it, expect } from 'vitest';
+import { authReducer, setAccessToken } from '@/shared/auth/authSlice';
 
-describe('access token holder', () => {
-  beforeEach(() => setAccessTokenProvider(null));
-
-  it('returns null when no provider is set', async () => {
-    expect(await getAccessToken()).toBeNull();
+describe('authSlice', () => {
+  it('starts with no token', () => {
+    expect(authReducer(undefined, { type: '@@init' }).accessToken).toBeNull();
   });
 
-  it('returns the token from the registered provider', async () => {
-    setAccessTokenProvider(async () => 'token-123');
-    expect(await getAccessToken()).toBe('token-123');
+  it('stores a token', () => {
+    const state = authReducer(undefined, setAccessToken('token-123'));
+    expect(state.accessToken).toBe('token-123');
+  });
+
+  it('clears the token', () => {
+    const state = authReducer({ accessToken: 'old' }, setAccessToken(null));
+    expect(state.accessToken).toBeNull();
   });
 });
 ```
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/auth'`
-Expected: FAIL — `./authToken` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/shared/auth/authSlice'` → FAIL.
 
-- [ ] **Step 3: Implement the token holder**
+- [ ] **Step 3: Implement `API_TAGS`**
 
-`frontend/src/shared/auth/authToken.ts`:
+`frontend/src/shared/api/apiTags.ts`:
 
 ```ts
-type AccessTokenProvider = () => Promise<string | null>;
+export const API_TAGS = { Client: 'Client' } as const;
 
-let provider: AccessTokenProvider | null = null;
-
-export function setAccessTokenProvider(next: AccessTokenProvider | null): void {
-  provider = next;
-}
-
-export async function getAccessToken(): Promise<string | null> {
-  return provider ? provider() : null;
-}
+export type ApiTag = (typeof API_TAGS)[keyof typeof API_TAGS];
 ```
 
-- [ ] **Step 4: Run it (green)**
+- [ ] **Step 4: Implement the auth slice**
 
-Run: `zsh -lc 'pnpm vitest run src/shared/auth'`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Create the `useAuth` seam and `AuthProvider`**
-
-`frontend/src/shared/auth/useAuth.ts`:
+`frontend/src/shared/auth/authSlice.ts`:
 
 ```ts
-import { createContext, useContext } from 'react';
+import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+
+interface AuthSliceState {
+  accessToken: string | null;
+}
+
+const initialState: AuthSliceState = { accessToken: null };
+
+const authSlice = createSlice({
+  name: 'auth',
+  initialState,
+  reducers: {
+    setAccessToken: (state, action: PayloadAction<string | null>) => {
+      state.accessToken = action.payload;
+    },
+  },
+});
+
+export const { setAccessToken } = authSlice.actions;
+export const authReducer = authSlice.reducer;
+```
+
+- [ ] **Step 5: Implement the base API (base URL + token read from state)**
+
+`frontend/src/shared/api/baseApi.ts`:
+
+```ts
+import {
+  createApi,
+  fetchBaseQuery,
+  type BaseQueryFn,
+  type FetchArgs,
+  type FetchBaseQueryError,
+} from '@reduxjs/toolkit/query/react';
+import { API_TAGS } from '@/shared/api/apiTags';
+import type { RootState } from '@/app/store';
+
+const dynamicBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = (args, apiCtx, extra) => {
+  const state = apiCtx.getState() as RootState;
+  return fetchBaseQuery({
+    baseUrl: state.config.apiBaseUrl,
+    prepareHeaders: (headers) => {
+      if (state.auth.accessToken) {
+        headers.set('Authorization', `Bearer ${state.auth.accessToken}`);
+      }
+      return headers;
+    },
+  })(args, apiCtx, extra);
+};
+
+export const api = createApi({
+  reducerPath: 'api',
+  tagTypes: Object.values(API_TAGS),
+  baseQuery: dynamicBaseQuery,
+  endpoints: () => ({}),
+});
+```
+
+- [ ] **Step 6: Implement the store factory (config passed in)**
+
+`frontend/src/app/store.ts`:
+
+```ts
+import { configureStore } from '@reduxjs/toolkit';
+import { api } from '@/shared/api/baseApi';
+import { authReducer } from '@/shared/auth/authSlice';
+import type { AppConfig } from '@/shared/config/appConfig';
+
+export function createStore(config: AppConfig) {
+  return configureStore({
+    reducer: {
+      [api.reducerPath]: api.reducer,
+      auth: authReducer,
+      config: () => config,
+    },
+    middleware: (getDefault) => getDefault().concat(api.middleware),
+  });
+}
+
+export type AppStore = ReturnType<typeof createStore>;
+export type RootState = ReturnType<AppStore['getState']>;
+export type AppDispatch = AppStore['dispatch'];
+```
+
+- [ ] **Step 7: Run it (green) + typecheck**
+
+Run: `zsh -lc 'pnpm vitest run src/shared/auth/authSlice && pnpm tsc --noEmit'` → PASS; no type errors. (`baseApi` imports `RootState` as a type only, so the `store ↔ baseApi` reference is erased at runtime.)
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add frontend/ && git commit -m "Add API_TAGS, auth slice, state-driven base API, and store(config) factory"
+```
+
+---
+
+## Task 5: Auth seam (single file, dispatches token into the store)
+
+**Files:** Create `src/shared/auth/auth.tsx`
+
+The seam is one file: `AuthContext`, `useAuth`, and `AuthProvider`. `AuthProvider` runs inside the Redux `Provider`, reads Auth0, and dispatches the access token (and refreshes) into the store. Tests inject an `AuthContext` value directly (no module mocking), so this file has no standalone test — it's exercised by component/route tests via the injected context.
+
+- [ ] **Step 1: Implement the seam**
+
+`frontend/src/shared/auth/auth.tsx`:
+
+```tsx
+import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { useAuth0 } from '@auth0/auth0-react';
+import { useDispatch } from 'react-redux';
+import { setAccessToken } from '@/shared/auth/authSlice';
+import type { AppDispatch } from '@/app/store';
 
 export interface AuthState {
   isAuthenticated: boolean;
@@ -369,30 +459,30 @@ export function useAuth(): AuthState {
   }
   return auth;
 }
-```
-
-`frontend/src/shared/auth/AuthProvider.tsx`:
-
-```tsx
-import { useEffect, type ReactNode } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { AuthContext, type AuthState } from './useAuth';
-import { setAccessTokenProvider } from './authToken';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth0 = useAuth0();
+  const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    setAccessTokenProvider(auth0.isAuthenticated ? () => auth0.getAccessTokenSilently() : null);
-    return () => setAccessTokenProvider(null);
-  }, [auth0.isAuthenticated, auth0]);
+    let active = true;
+    if (auth0.isAuthenticated) {
+      auth0.getAccessTokenSilently().then(
+        (token) => active && dispatch(setAccessToken(token)),
+        () => active && dispatch(setAccessToken(null)),
+      );
+    } else {
+      dispatch(setAccessToken(null));
+    }
+    return () => { active = false; };
+  }, [auth0.isAuthenticated, auth0, dispatch]);
 
   const value: AuthState = {
     isAuthenticated: auth0.isAuthenticated,
     isLoading: auth0.isLoading,
     hasError: auth0.error !== undefined,
     userEmail: auth0.user?.email ?? null,
-    login: (returnTo: string) => auth0.loginWithRedirect({ appState: { returnTo } }),
+    login: (returnTo) => auth0.loginWithRedirect({ appState: { returnTo } }),
     logout: () => auth0.logout({ logoutParams: { returnTo: window.location.origin } }),
   };
 
@@ -400,82 +490,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 }
 ```
 
-- [ ] **Step 6: Create the base RTK Query API**
+> Token refresh: `getAccessTokenSilently()` refreshes transparently; this effect re-dispatches on auth change. A proactive refresh (interval / on-expiry) is wired when live Auth0 is integrated (infra phase).
 
-The `api` is an **eager module-load singleton** (so feature endpoints can `injectEndpoints` at import time without an init step). Its base URL is read at request time from a holder set via `setApiBaseUrl` — the bootstrap sets it from config, tests set it from `testConfig`.
+- [ ] **Step 2: Typecheck + commit**
 
-`frontend/src/shared/api/baseApi.ts`:
-
-```ts
-import {
-  createApi,
-  fetchBaseQuery,
-  type BaseQueryFn,
-  type FetchArgs,
-  type FetchBaseQueryError,
-} from '@reduxjs/toolkit/query/react';
-import { getAccessToken } from '../auth/authToken';
-
-let apiBaseUrl = '';
-
-export function setApiBaseUrl(url: string): void {
-  apiBaseUrl = url;
-}
-
-const dynamicBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = (args, store, extra) =>
-  fetchBaseQuery({
-    baseUrl: apiBaseUrl,
-    prepareHeaders: async (headers) => {
-      const token = await getAccessToken();
-      if (token) {
-        headers.set('Authorization', `Bearer ${token}`);
-      }
-      return headers;
-    },
-  })(args, store, extra);
-
-export const api = createApi({
-  reducerPath: 'api',
-  tagTypes: ['Client'],
-  baseQuery: dynamicBaseQuery,
-  endpoints: () => ({}),
-});
-```
-
-- [ ] **Step 7: Create the store factory**
-
-`frontend/src/app/store.ts`:
-
-```ts
-import { configureStore } from '@reduxjs/toolkit';
-import { api } from '../shared/api/baseApi';
-
-export function createStore() {
-  return configureStore({
-    reducer: { [api.reducerPath]: api.reducer },
-    middleware: (getDefault) => getDefault().concat(api.middleware),
-  });
-}
-
-export type AppStore = ReturnType<typeof createStore>;
-```
-
-- [ ] **Step 8: Build + commit**
-
-Run: `zsh -lc 'pnpm tsc --noEmit && pnpm vitest run src/shared'`
-Expected: no type errors; auth token tests pass.
+Run: `zsh -lc 'pnpm tsc --noEmit'`
 
 ```bash
-git add frontend/ && git commit -m "Add auth seam (useAuth/AuthProvider/token holder), base RTK Query api, and store factory"
+git add frontend/ && git commit -m "Add auth seam (useAuth/AuthProvider) that dispatches the token into the store"
 ```
 
 ---
 
-## Task 5: Centralized testing harness
+## Task 6: Centralized testing harness
 
-**Files:** Create `frontend/src/testing/testConfig.ts`, `requestCapture.ts`, `TestingApiServer.ts`, `renderWithProviders.tsx`; Modify `frontend/src/testing/setup.ts`; Test `frontend/src/testing/requestCapture.test.ts`
-
-This harness is exercised by every feature test. The client-specific endpoint setups + `ModelFactory` come in Task 7 once the Client schemas exist; here we build the generic core.
+**Files:** Create `src/testing/testConfig.ts`, `requestCapture.ts`, `TestingApiServer.ts`, `renderWithProviders.tsx`; Modify `src/testing/setup.ts`; Test `src/testing/requestCapture.test.ts`
 
 - [ ] **Step 1: Write the failing test for `RequestCapture`**
 
@@ -483,18 +512,18 @@ This harness is exercised by every feature test. The client-specific endpoint se
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import { createRequestCapture } from './requestCapture';
+import { RequestCapture } from '@/testing/requestCapture';
 
-describe('createRequestCapture', () => {
+describe('RequestCapture', () => {
   it('starts empty', () => {
-    const capture = createRequestCapture<{ name: string }>();
+    const capture = new RequestCapture<{ name: string }>();
     expect(capture.wasCalled).toBe(false);
     expect(capture.callCount).toBe(0);
     expect(capture.lastRequest).toBeUndefined();
   });
 
   it('records calls', () => {
-    const capture = createRequestCapture<{ name: string }>();
+    const capture = new RequestCapture<{ name: string }>();
     capture.record({ body: { name: 'Acme' }, headers: new Headers(), url: new URL('http://x/clients'), searchParams: new URLSearchParams() });
     expect(capture.wasCalled).toBe(true);
     expect(capture.callCount).toBe(1);
@@ -505,10 +534,9 @@ describe('createRequestCapture', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'`
-Expected: FAIL — `./requestCapture` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'` → FAIL.
 
-- [ ] **Step 3: Implement `RequestCapture`**
+- [ ] **Step 3: Implement `RequestCapture` as a class**
 
 `frontend/src/testing/requestCapture.ts`:
 
@@ -520,53 +548,46 @@ export interface CapturedRequest<TBody> {
   searchParams: URLSearchParams;
 }
 
-export interface RequestCapture<TBody> {
-  readonly calls: ReadonlyArray<CapturedRequest<TBody>>;
-  readonly lastRequest: CapturedRequest<TBody> | undefined;
-  readonly wasCalled: boolean;
-  readonly callCount: number;
-  record(request: CapturedRequest<TBody>): void;
-}
+export class RequestCapture<TBody> {
+  private readonly recorded: CapturedRequest<TBody>[] = [];
 
-export function createRequestCapture<TBody>(): RequestCapture<TBody> {
-  const calls: CapturedRequest<TBody>[] = [];
-  return {
-    get calls() { return calls; },
-    get lastRequest() { return calls.at(-1); },
-    get wasCalled() { return calls.length > 0; },
-    get callCount() { return calls.length; },
-    record(request) { calls.push(request); },
-  };
+  get calls(): ReadonlyArray<CapturedRequest<TBody>> { return this.recorded; }
+  get lastRequest(): CapturedRequest<TBody> | undefined { return this.recorded.at(-1); }
+  get wasCalled(): boolean { return this.recorded.length > 0; }
+  get callCount(): number { return this.recorded.length; }
+
+  record(request: CapturedRequest<TBody>): void {
+    this.recorded.push(request);
+  }
 }
 ```
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'`
-Expected: PASS (2 tests).
+Run: `zsh -lc 'pnpm vitest run src/testing/requestCapture'` → PASS (2).
 
-- [ ] **Step 5: Create the shared test config**
+- [ ] **Step 5: Shared test config constant**
 
 `frontend/src/testing/testConfig.ts`:
 
 ```ts
-import type { AppConfig } from '../shared/config/appConfig';
+import type { AppConfig } from '@/shared/config/appConfig';
 
-export const testConfig: AppConfig = {
+export const TEST_CONFIG: AppConfig = {
   apiBaseUrl: 'http://api.test',
   auth: { domain: 'test.auth0.com', clientId: 'test-client', audience: 'https://api.test' },
 };
 ```
 
-- [ ] **Step 6: Create the `TestingApiServer` core**
+- [ ] **Step 6: `TestingApiServer` core**
 
 `frontend/src/testing/TestingApiServer.ts`:
 
 ```ts
 import { setupServer } from 'msw/node';
 import { http, HttpResponse, delay, type HttpHandler } from 'msw';
-import { testConfig } from './testConfig';
-import type { RequestCapture } from './requestCapture';
+import { TEST_CONFIG } from '@/testing/testConfig';
+import type { RequestCapture } from '@/testing/requestCapture';
 
 export interface SetupEndpointOptions<TBody = never> {
   delayMs?: number;
@@ -576,68 +597,47 @@ export interface SetupEndpointOptions<TBody = never> {
 
 const server = setupServer();
 
-function url(path: string): string {
-  return `${testConfig.apiBaseUrl}${path}`;
+export function endpointUrl(path: string): string {
+  return `${TEST_CONFIG.apiBaseUrl}${path}`;
 }
 
-async function applyCommon<TBody>(
-  request: Request,
-  options: SetupEndpointOptions<TBody>,
-): Promise<void> {
+export async function applyCommon<TBody>(request: Request, options: SetupEndpointOptions<TBody>): Promise<void> {
   if (options.delayMs) {
     await delay(options.delayMs);
   }
   if (options.capture) {
     const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
     const body = (hasBody ? await request.clone().json() : undefined) as TBody;
-    options.capture.record({
-      body,
-      headers: request.headers,
-      url: new URL(request.url),
-      searchParams: new URL(request.url).searchParams,
-    });
+    const url = new URL(request.url);
+    options.capture.record({ body, headers: request.headers, url, searchParams: url.searchParams });
   }
 }
 
 export const TestingApiServer = {
-  start(): void {
-    server.listen({ onUnhandledRequest: 'error' });
-  },
-  reset(): void {
-    server.resetHandlers();
-  },
-  stop(): void {
-    server.close();
-  },
-  use(...handlers: HttpHandler[]): void {
-    server.use(...handlers);
-  },
-  url,
-  applyCommon,
-  http,
-  HttpResponse,
+  start: () => server.listen({ onUnhandledRequest: 'error' }),
+  reset: () => server.resetHandlers(),
+  stop: () => server.close(),
+  use: (...handlers: HttpHandler[]) => server.use(...handlers),
 };
 ```
 
-> Per-endpoint setups (`setupGetClientList`, etc.) are added in Task 7. `applyCommon` centralizes delay/capture so each endpoint setup stays tiny.
+> Per-endpoint setups (`setupGetClientList`, etc.) are added in Task 8; `endpointUrl`/`applyCommon` keep each one tiny.
 
-- [ ] **Step 7: Wire the MSW lifecycle into the global setup**
+- [ ] **Step 7: Wire MSW lifecycle into the global setup**
 
 Replace `frontend/src/testing/setup.ts`:
 
 ```ts
 import { afterAll, afterEach, beforeAll } from 'vitest';
 import '@testing-library/jest-dom/vitest';
-import { TestingApiServer } from './TestingApiServer';
+import { TestingApiServer } from '@/testing/TestingApiServer';
 
 beforeAll(() => TestingApiServer.start());
 afterEach(() => TestingApiServer.reset());
 afterAll(() => TestingApiServer.stop());
 ```
 
-- [ ] **Step 8: Create `renderWithProviders`**
-
-Builds the real store (with the clients api injected), the config + a test auth context, MUI theme, and a memory router at a given route.
+- [ ] **Step 8: `renderWithProviders`**
 
 `frontend/src/testing/renderWithProviders.tsx`:
 
@@ -647,21 +647,15 @@ import { render, type RenderResult } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { setApiBaseUrl } from '../shared/api/baseApi';
-import { createStore } from '../app/store';
-import { ConfigProvider } from '../shared/config/ConfigContext';
-import { AuthContext, type AuthState } from '../shared/auth/useAuth';
-import { setAccessTokenProvider } from '../shared/auth/authToken';
-import { testConfig } from './testConfig';
+import { createStore } from '@/app/store';
+import { setAccessToken } from '@/shared/auth/authSlice';
+import { ConfigProvider } from '@/shared/config/ConfigContext';
+import { AuthContext, type AuthState } from '@/shared/auth/auth';
+import { TEST_CONFIG } from '@/testing/testConfig';
 
 const theme = createTheme();
 
-export interface RenderOptions {
-  route?: string;
-  auth?: Partial<AuthState>;
-}
-
-const authenticatedDefault: AuthState = {
+const DEFAULT_AUTHENTICATED_STATE: AuthState = {
   isAuthenticated: true,
   isLoading: false,
   hasError: false,
@@ -670,23 +664,26 @@ const authenticatedDefault: AuthState = {
   logout: () => {},
 };
 
-export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}): RenderResult {
-  const auth: AuthState = { ...authenticatedDefault, ...options.auth };
-  setAccessTokenProvider(auth.isAuthenticated ? async () => 'test-token' : null);
+export interface RenderOptions {
+  route?: string;
+  auth?: Partial<AuthState>;
+}
 
-  setApiBaseUrl(testConfig.apiBaseUrl);
-  const store = createStore();
+export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}): RenderResult {
+  const auth: AuthState = { ...DEFAULT_AUTHENTICATED_STATE, ...options.auth };
+  const store = createStore(TEST_CONFIG);
+  store.dispatch(setAccessToken(auth.isAuthenticated ? 'test-token' : null));
 
   function Wrapper({ children }: { children: ReactNode }) {
     return (
-      <ConfigProvider config={testConfig}>
-        <AuthContext.Provider value={auth}>
-          <Provider store={store}>
+      <ConfigProvider config={TEST_CONFIG}>
+        <Provider store={store}>
+          <AuthContext.Provider value={auth}>
             <ThemeProvider theme={theme}>
               <MemoryRouter initialEntries={[options.route ?? '/']}>{children}</MemoryRouter>
             </ThemeProvider>
-          </Provider>
-        </AuthContext.Provider>
+          </AuthContext.Provider>
+        </Provider>
       </ConfigProvider>
     );
   }
@@ -695,36 +692,31 @@ export function renderWithProviders(ui: ReactElement, options: RenderOptions = {
 }
 ```
 
-> The `api` singleton already exists at import (Task 4), so `renderWithProviders` just sets its base URL and builds a fresh store (fresh RTK Query cache per test). Feature tests import `clientsApi` (Task 8), whose `injectEndpoints` registers its endpoints on that same singleton at import time — no init step, no ordering hazard.
-
 - [ ] **Step 9: Run the suite + commit**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'`
-Expected: PASS (config, auth token, requestCapture). No type errors.
+Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → green.
 
 ```bash
-git add frontend/ && git commit -m "Add centralized testing harness: TestingApiServer (MSW), RequestCapture, renderWithProviders"
+git add frontend/ && git commit -m "Add testing harness: TestingApiServer (MSW), RequestCapture class, renderWithProviders"
 ```
 
 ---
 
-## Task 6: Client Zod schemas
+## Task 7: Client Zod schemas
 
-**Files:** Create `frontend/src/features/clients/clientSchemas.ts`; Test `frontend/src/features/clients/clientSchemas.test.ts`
+**Files:** Create `src/features/clients/schemas/ClientSchemas.ts`; Test `src/features/clients/schemas/ClientSchemas.test.ts`
 
-These mirror the backend `Models` (`ClientResponseModel`, `CreateClientRequestModel`, `ListResultModel<T>`) and carry the email-or-phone rule.
+- [ ] **Step 1: Write the failing test (`safeParse` for failure cases)**
 
-- [ ] **Step 1: Write the failing test**
-
-`frontend/src/features/clients/clientSchemas.test.ts`:
+`frontend/src/features/clients/schemas/ClientSchemas.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import { clientResponseSchema, createClientRequestSchema, clientListSchema } from './clientSchemas';
+import { ClientResponseSchema, CreateClientRequestSchema, ClientListSchema } from '@/features/clients/schemas/ClientSchemas';
 
 describe('client schemas', () => {
   it('parses a client response', () => {
-    const parsed = clientResponseSchema.parse({
+    const parsed = ClientResponseSchema.parse({
       id: '11111111-1111-1111-1111-111111111111',
       name: 'Acme Farms',
       email: 'ops@acme.example',
@@ -734,80 +726,75 @@ describe('client schemas', () => {
   });
 
   it('accepts a create request with only a phone number', () => {
-    expect(() => createClientRequestSchema.parse({ name: 'Acme', email: null, phoneNumber: '555-0100' })).not.toThrow();
+    expect(CreateClientRequestSchema.safeParse({ name: 'Acme', email: null, phoneNumber: '555-0100' }).success).toBe(true);
   });
 
   it('rejects a create request with neither email nor phone', () => {
-    expect(() => createClientRequestSchema.parse({ name: 'Acme', email: null, phoneNumber: null })).toThrow();
+    expect(CreateClientRequestSchema.safeParse({ name: 'Acme', email: null, phoneNumber: null }).success).toBe(false);
   });
 
   it('rejects a blank name', () => {
-    expect(() => createClientRequestSchema.parse({ name: '', email: 'ops@acme.example', phoneNumber: null })).toThrow();
+    expect(CreateClientRequestSchema.safeParse({ name: '', email: 'ops@acme.example', phoneNumber: null }).success).toBe(false);
   });
 
   it('parses a list result', () => {
-    const parsed = clientListSchema.parse({ items: [], totalCount: 0 });
-    expect(parsed.totalCount).toBe(0);
+    expect(ClientListSchema.safeParse({ items: [], totalCount: 0 }).success).toBe(true);
   });
 });
 ```
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/clientSchemas'`
-Expected: FAIL — `./clientSchemas` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas'` → FAIL.
 
-- [ ] **Step 3: Implement the schemas**
+- [ ] **Step 3: Implement the schemas (PascalCase, object split before refine)**
 
-`frontend/src/features/clients/clientSchemas.ts`:
+`frontend/src/features/clients/schemas/ClientSchemas.ts`:
 
 ```ts
 import { z } from 'zod';
 
-export const clientResponseSchema = z.object({
+export const ClientResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
   email: z.string().nullable(),
   phoneNumber: z.string().nullable(),
 });
 
-export const clientListSchema = z.object({
-  items: z.array(clientResponseSchema),
+export const ClientListSchema = z.object({
+  items: z.array(ClientResponseSchema),
   totalCount: z.number(),
 });
 
-export const createClientRequestObjectSchema = z.object({
+export const CreateClientRequestObjectSchema = z.object({
   name: z.string().min(1),
   email: z.string().nullable(),
   phoneNumber: z.string().nullable(),
 });
 
-export const createClientRequestSchema = createClientRequestObjectSchema.refine(
+export const CreateClientRequestSchema = CreateClientRequestObjectSchema.refine(
   (value) => Boolean(value.email?.trim()) || Boolean(value.phoneNumber?.trim()),
   { message: 'Enter an email or a phone number.', path: ['contact'] },
 );
 
-export type ClientResponse = z.infer<typeof clientResponseSchema>;
-export type ClientList = z.infer<typeof clientListSchema>;
-export type CreateClientRequest = z.infer<typeof createClientRequestSchema>;
+export type ClientResponse = z.infer<typeof ClientResponseSchema>;
+export type ClientList = z.infer<typeof ClientListSchema>;
+export type CreateClientRequest = z.infer<typeof CreateClientRequestSchema>;
 ```
 
-- [ ] **Step 4: Run it (green)**
+- [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/clientSchemas'`
-Expected: PASS (5 tests).
-
-- [ ] **Step 5: Commit**
+Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas'` → PASS (5).
 
 ```bash
-git add frontend/ && git commit -m "Add Client Zod schemas with the email-or-phone rule"
+git add frontend/ && git commit -m "Add Client Zod schemas (PascalCase) with the email-or-phone rule"
 ```
 
 ---
 
-## Task 7: ModelFactory + client endpoint setups
+## Task 8: ModelFactory + client endpoint setups
 
-**Files:** Create `frontend/src/testing/modelFactory.ts`; Modify `frontend/src/testing/TestingApiServer.ts`; Test `frontend/src/testing/modelFactory.test.ts`
+**Files:** Create `src/testing/modelFactory.ts`; Modify `src/testing/TestingApiServer.ts`; Test `src/testing/modelFactory.test.ts`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -815,18 +802,16 @@ git add frontend/ && git commit -m "Add Client Zod schemas with the email-or-pho
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import { clientResponseSchema } from '../features/clients/clientSchemas';
-import { ModelFactory } from './modelFactory';
+import { ClientResponseSchema } from '@/features/clients/schemas/ClientSchemas';
+import { ModelFactory } from '@/testing/modelFactory';
 
 describe('ModelFactory', () => {
   it('creates a valid client with defaults', () => {
-    const client = ModelFactory.createClient();
-    expect(() => clientResponseSchema.parse(client)).not.toThrow();
+    expect(ClientResponseSchema.safeParse(ModelFactory.createClient()).success).toBe(true);
   });
 
   it('honors overrides', () => {
-    const client = ModelFactory.createClient({ name: 'Acme Farms' });
-    expect(client.name).toBe('Acme Farms');
+    expect(ModelFactory.createClient({ name: 'Acme Farms' }).name).toBe('Acme Farms');
   });
 
   it('creates a list of the requested size', () => {
@@ -839,8 +824,7 @@ describe('ModelFactory', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'`
-Expected: FAIL — `./modelFactory` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'` → FAIL.
 
 - [ ] **Step 3: Implement `ModelFactory`**
 
@@ -848,7 +832,7 @@ Expected: FAIL — `./modelFactory` does not exist.
 
 ```ts
 import { faker } from '@faker-js/faker';
-import type { ClientResponse, ClientList, CreateClientRequest } from '../features/clients/clientSchemas';
+import type { ClientResponse, ClientList, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
 
 function createClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
   return {
@@ -861,8 +845,7 @@ function createClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
 }
 
 function createClientList(count = 2, overrides: Partial<ClientResponse>[] = []): ClientList {
-  const items = Array.from({ length: count }, (_, i) => createClient(overrides[i]));
-  return { items, totalCount: count };
+  return { items: Array.from({ length: count }, (_, i) => createClient(overrides[i])), totalCount: count };
 }
 
 function createClientRequest(overrides: Partial<CreateClientRequest> = {}): CreateClientRequest {
@@ -874,58 +857,48 @@ export const ModelFactory = { createClient, createClientList, createClientReques
 
 - [ ] **Step 4: Run it (green)**
 
-Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'`
-Expected: PASS (3 tests).
+Run: `zsh -lc 'pnpm vitest run src/testing/modelFactory'` → PASS (3).
 
-- [ ] **Step 5: Add the client endpoint setups to `TestingApiServer`**
+- [ ] **Step 5: Add client endpoint setups to `TestingApiServer`**
 
-Append to `frontend/src/testing/TestingApiServer.ts` — add these imports at the top and the methods to the exported object:
+At the top of `frontend/src/testing/TestingApiServer.ts` add:
 
 ```ts
-import type { ClientList, ClientResponse, CreateClientRequest } from '../features/clients/clientSchemas';
+import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
 ```
 
-Add to the `TestingApiServer` object (alongside `start`/`reset`/`stop`):
+Add these methods to the exported `TestingApiServer` object (alongside `start`/`reset`/`stop`/`use`):
 
 ```ts
-  setupGetClientList(list: ClientList, options: SetupEndpointOptions = {}): void {
-    server.use(
-      http.get(url('/clients'), async ({ request }) => {
-        await applyCommon(request, options);
-        return HttpResponse.json(list, { status: options.status ?? 200 });
-      }),
-    );
+  setupGetClientList(list: ClientList, options: SetupEndpointOptions = {}) {
+    server.use(http.get(endpointUrl('/clients'), async ({ request }) => {
+      await applyCommon(request, options);
+      return HttpResponse.json(list, { status: options.status ?? 200 });
+    }));
   },
-  setupGetClient(client: ClientResponse, options: SetupEndpointOptions = {}): void {
-    server.use(
-      http.get(url(`/clients/${client.id}`), async ({ request }) => {
-        await applyCommon(request, options);
-        return HttpResponse.json(client, { status: options.status ?? 200 });
-      }),
-    );
+  setupGetClient(client: ClientResponse, options: SetupEndpointOptions = {}) {
+    server.use(http.get(endpointUrl(`/clients/${client.id}`), async ({ request }) => {
+      await applyCommon(request, options);
+      return HttpResponse.json(client, { status: options.status ?? 200 });
+    }));
   },
-  setupGetClientNotFound(id: string, options: SetupEndpointOptions = {}): void {
-    server.use(
-      http.get(url(`/clients/${id}`), async ({ request }) => {
-        await applyCommon(request, options);
-        return HttpResponse.json({ title: 'Not Found' }, { status: options.status ?? 404 });
-      }),
-    );
+  setupGetClientNotFound(id: string, options: SetupEndpointOptions = {}) {
+    server.use(http.get(endpointUrl(`/clients/${id}`), async ({ request }) => {
+      await applyCommon(request, options);
+      return HttpResponse.json({ title: 'Not Found' }, { status: options.status ?? 404 });
+    }));
   },
-  setupCreateClient(created: ClientResponse, options: SetupEndpointOptions<CreateClientRequest> = {}): void {
-    server.use(
-      http.post(url('/clients'), async ({ request }) => {
-        await applyCommon(request, options);
-        return HttpResponse.json(created, { status: options.status ?? 201 });
-      }),
-    );
+  setupCreateClient(created: ClientResponse, options: SetupEndpointOptions<CreateClientRequest> = {}) {
+    server.use(http.post(endpointUrl('/clients'), async ({ request }) => {
+      await applyCommon(request, options);
+      return HttpResponse.json(created, { status: options.status ?? 201 });
+    }));
   },
 ```
 
 - [ ] **Step 6: Run the suite + commit**
 
-Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'`
-Expected: all green.
+Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → green.
 
 ```bash
 git add frontend/ && git commit -m "Add faker ModelFactory and client endpoint setups on TestingApiServer"
@@ -933,23 +906,21 @@ git add frontend/ && git commit -m "Add faker ModelFactory and client endpoint s
 
 ---
 
-## Task 8: Clients RTK Query API slice
+## Task 9: Clients RTK Query API slice
 
-**Files:** Create `frontend/src/features/clients/clientsApi.ts`; Test `frontend/src/features/clients/clientsApi.test.tsx`
+**Files:** Create `src/features/clients/api/clientsApi.ts`; Test `src/features/clients/api/clientsApi.test.tsx`
 
-The clients endpoints inject into the shared `api` singleton (Task 4) at import time — both the app and tests use the same registered endpoints. No init step (the base URL comes from `setApiBaseUrl`, which `renderWithProviders` and the bootstrap already call).
+- [ ] **Step 1: Write the failing test**
 
-- [ ] **Step 1: Write the failing test (a hook-driven component through MSW)**
-
-`frontend/src/features/clients/clientsApi.test.tsx`:
+`frontend/src/features/clients/api/clientsApi.test.tsx`:
 
 ```tsx
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { clientsApi } from './clientsApi';
-import { renderWithProviders } from '../../testing/renderWithProviders';
-import { TestingApiServer } from '../../testing/TestingApiServer';
-import { ModelFactory } from '../../testing/modelFactory';
+import { clientsApi } from '@/features/clients/api/clientsApi';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { TestingApiServer } from '@/testing/TestingApiServer';
+import { ModelFactory } from '@/testing/modelFactory';
 
 function Probe() {
   const { data } = clientsApi.useGetClientsQuery();
@@ -959,9 +930,7 @@ function Probe() {
 describe('clientsApi', () => {
   it('fetches the client list', async () => {
     TestingApiServer.setupGetClientList(ModelFactory.createClientList(2));
-
     renderWithProviders(<Probe />);
-
     expect(await screen.findByText('count:2')).toBeInTheDocument();
   });
 });
@@ -969,63 +938,60 @@ describe('clientsApi', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/clientsApi'`
-Expected: FAIL — `./clientsApi` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/features/clients/api'` → FAIL.
 
-- [ ] **Step 3: Implement the clients api slice**
+- [ ] **Step 3: Implement the slice (inject into the singleton, `API_TAGS`)**
 
-`frontend/src/features/clients/clientsApi.ts`:
+`frontend/src/features/clients/api/clientsApi.ts`:
 
 ```ts
-import { api } from '../../shared/api/baseApi';
-import type { ClientList, ClientResponse, CreateClientRequest } from './clientSchemas';
+import { api } from '@/shared/api/baseApi';
+import { API_TAGS } from '@/shared/api/apiTags';
+import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
 
 export const clientsApi = api.injectEndpoints({
   endpoints: (build) => ({
     getClients: build.query<ClientList, void>({
       query: () => '/clients',
-      providesTags: ['Client'],
+      providesTags: [API_TAGS.Client],
     }),
     getClient: build.query<ClientResponse, string>({
       query: (id) => `/clients/${id}`,
-      providesTags: ['Client'],
+      providesTags: [API_TAGS.Client],
     }),
     createClient: build.mutation<ClientResponse, CreateClientRequest>({
       query: (body) => ({ url: '/clients', method: 'POST', body }),
-      invalidatesTags: ['Client'],
+      invalidatesTags: [API_TAGS.Client],
     }),
   }),
 });
 ```
 
-- [ ] **Step 4: Run it (green)**
+- [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/clientsApi && pnpm tsc --noEmit'`
-Expected: PASS; no type errors.
-
-- [ ] **Step 5: Commit**
+Run: `zsh -lc 'pnpm vitest run src/features/clients/api && pnpm tsc --noEmit'` → PASS.
 
 ```bash
-git add frontend/ && git commit -m "Add clients RTK Query api slice (get/list/create) injected on the shared api"
+git add frontend/ && git commit -m "Add clients RTK Query api slice (get/list/create) using API_TAGS"
 ```
 
 ---
 
-## Task 9: Clients list page
+## Task 10: Clients list page
 
-**Files:** Create `frontend/src/features/clients/ClientsListPage.tsx`; Test `frontend/src/features/clients/ClientsListPage.test.tsx`
+**Files:** Create `src/features/clients/pages/ClientsListPage.tsx`; Test `…/ClientsListPage.test.tsx`
 
 - [ ] **Step 1: Write the failing test**
 
-`frontend/src/features/clients/ClientsListPage.test.tsx`:
+`frontend/src/features/clients/pages/ClientsListPage.test.tsx`:
 
 ```tsx
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../../testing/renderWithProviders';
-import { TestingApiServer } from '../../testing/TestingApiServer';
-import { ModelFactory } from '../../testing/modelFactory';
-import { ClientsListPage } from './ClientsListPage';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { TestingApiServer } from '@/testing/TestingApiServer';
+import { ModelFactory } from '@/testing/modelFactory';
+import { ClientsListPage } from '@/features/clients/pages/ClientsListPage';
 
 describe('ClientsListPage', () => {
   it('shows each client name with contact sub-text', async () => {
@@ -1033,9 +999,7 @@ describe('ClientsListPage', () => {
       items: [ModelFactory.createClient({ name: 'Acme Farms', email: 'ops@acme.example', phoneNumber: '555-0100' })],
       totalCount: 1,
     });
-
     renderWithProviders(<ClientsListPage />, { route: '/clients' });
-
     expect(await screen.findByText('Acme Farms')).toBeInTheDocument();
     expect(screen.getByText(/ops@acme\.example/)).toBeInTheDocument();
   });
@@ -1056,19 +1020,18 @@ describe('ClientsListPage', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/ClientsListPage'`
-Expected: FAIL — `./ClientsListPage` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientsListPage'` → FAIL.
 
-- [ ] **Step 3: Implement the page**
+- [ ] **Step 3: Implement the page (with a CreateClientDialog stub)**
 
-`frontend/src/features/clients/ClientsListPage.tsx`:
+`frontend/src/features/clients/pages/ClientsListPage.tsx`:
 
 ```tsx
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Box, Button, CircularProgress, List, ListItemButton, ListItemText, Stack, Typography } from '@mui/material';
-import { clientsApi } from './clientsApi';
-import { CreateClientDialog } from './CreateClientDialog';
+import { clientsApi } from '@/features/clients/api/clientsApi';
+import { CreateClientDialog } from '@/features/clients/dialogs/CreateClientDialog';
 
 export function ClientsListPage() {
   const navigate = useNavigate();
@@ -1104,21 +1067,19 @@ export function ClientsListPage() {
 }
 ```
 
-> `CreateClientDialog` is implemented in Task 10. To keep this task green on its own, create a temporary stub now and replace it in Task 10:
->
-> `frontend/src/features/clients/CreateClientDialog.tsx`:
-> ```tsx
-> export function CreateClientDialog({ open }: { open: boolean; onClose: () => void }) {
->   return open ? null : null;
-> }
-> ```
+Create a temporary stub (replaced in Task 11) so this task is green:
 
-- [ ] **Step 4: Run it (green)**
+`frontend/src/features/clients/dialogs/CreateClientDialog.tsx`:
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/ClientsListPage'`
-Expected: PASS (3 tests).
+```tsx
+export function CreateClientDialog(_: { open: boolean; onClose: () => void }) {
+  return null;
+}
+```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Run it (green) + commit**
+
+Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientsListPage'` → PASS (3).
 
 ```bash
 git add frontend/ && git commit -m "Add ClientsListPage (list, loading, error) with a CreateClientDialog stub"
@@ -1126,29 +1087,29 @@ git add frontend/ && git commit -m "Add ClientsListPage (list, loading, error) w
 
 ---
 
-## Task 10: Create client dialog
+## Task 11: Create client dialog (TanStack Form)
 
-**Files:** Replace `frontend/src/features/clients/CreateClientDialog.tsx`; Test `frontend/src/features/clients/CreateClientDialog.test.tsx`
+**Files:** Replace `src/features/clients/dialogs/CreateClientDialog.tsx`; Test `…/CreateClientDialog.test.tsx`
 
 - [ ] **Step 1: Write the failing tests**
 
-`frontend/src/features/clients/CreateClientDialog.test.tsx`:
+`frontend/src/features/clients/dialogs/CreateClientDialog.test.tsx`:
 
 ```tsx
 import { describe, it, expect } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '../../testing/renderWithProviders';
-import { TestingApiServer } from '../../testing/TestingApiServer';
-import { ModelFactory } from '../../testing/modelFactory';
-import { createRequestCapture } from '../../testing/requestCapture';
-import type { CreateClientRequest } from './clientSchemas';
-import { CreateClientDialog } from './CreateClientDialog';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { TestingApiServer } from '@/testing/TestingApiServer';
+import { ModelFactory } from '@/testing/modelFactory';
+import { RequestCapture } from '@/testing/requestCapture';
+import type { CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
+import { CreateClientDialog } from '@/features/clients/dialogs/CreateClientDialog';
 
 describe('CreateClientDialog', () => {
   it('blocks submit and shows an error when neither email nor phone is given', async () => {
     const user = userEvent.setup();
-    const capture = createRequestCapture<CreateClientRequest>();
+    const capture = new RequestCapture<CreateClientRequest>();
     TestingApiServer.setupCreateClient(ModelFactory.createClient(), { capture });
 
     renderWithProviders(<CreateClientDialog open onClose={() => {}} />, { route: '/clients' });
@@ -1160,11 +1121,10 @@ describe('CreateClientDialog', () => {
     expect(capture.wasCalled).toBe(false);
   });
 
-  it('submits the entered values and the request carries them', async () => {
+  it('submits the entered values; the request carries them', async () => {
     const user = userEvent.setup();
-    const capture = createRequestCapture<CreateClientRequest>();
-    const created = ModelFactory.createClient({ name: 'Acme Farms' });
-    TestingApiServer.setupCreateClient(created, { capture });
+    const capture = new RequestCapture<CreateClientRequest>();
+    TestingApiServer.setupCreateClient(ModelFactory.createClient({ name: 'Acme Farms' }), { capture });
 
     renderWithProviders(<CreateClientDialog open onClose={() => {}} />, { route: '/clients' });
 
@@ -1194,96 +1154,115 @@ describe('CreateClientDialog', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/CreateClientDialog'`
-Expected: FAIL — the stub renders nothing.
+Run: `zsh -lc 'pnpm vitest run src/features/clients/dialogs/CreateClientDialog'` → FAIL (stub renders nothing).
 
-- [ ] **Step 3: Implement the dialog**
+- [ ] **Step 3: Implement the dialog with TanStack Form**
 
-`frontend/src/features/clients/CreateClientDialog.tsx`:
+`frontend/src/features/clients/dialogs/CreateClientDialog.tsx`:
 
 ```tsx
-import { useState } from 'react';
+import { useForm } from '@tanstack/react-form';
 import { useNavigate } from 'react-router-dom';
 import { Alert, Button, Dialog, DialogActions, DialogContent, DialogTitle, Stack, TextField } from '@mui/material';
-import { clientsApi } from './clientsApi';
-import { createClientRequestSchema } from './clientSchemas';
+import { clientsApi } from '@/features/clients/api/clientsApi';
+import { CreateClientRequestSchema } from '@/features/clients/schemas/ClientSchemas';
 
 export function CreateClientDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const navigate = useNavigate();
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [createClient, { isLoading, isError }] = clientsApi.useCreateClientMutation();
+  const [createClient, { isError }] = clientsApi.useCreateClientMutation();
 
-  async function submit() {
-    const parsed = createClientRequestSchema.safeParse({
-      name,
-      email: email || null,
-      phoneNumber: phoneNumber || null,
-    });
-    if (!parsed.success) {
-      setValidationError(parsed.error.issues[0]?.message ?? 'Please check the form.');
-      return;
-    }
-    setValidationError(null);
-    const result = await createClient(parsed.data);
-    if ('data' in result) {
-      onClose();
-      navigate(`/clients/${result.data.id}`);
-    }
-  }
+  const form = useForm({
+    defaultValues: { name: '', email: '', phoneNumber: '' },
+    validators: { onSubmit: CreateClientRequestSchema },
+    onSubmit: async ({ value }) => {
+      const result = await createClient({
+        name: value.name,
+        email: value.email || null,
+        phoneNumber: value.phoneNumber || null,
+      });
+      if ('data' in result) {
+        onClose();
+        navigate(`/clients/${result.data.id}`);
+      }
+    },
+  });
 
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>New Client</DialogTitle>
-      <DialogContent>
-        <Stack spacing={2} mt={1}>
-          {validationError && <Alert severity="warning">{validationError}</Alert>}
-          {isError && <Alert severity="error">We couldn’t create the client. Please try again.</Alert>}
-          <TextField label="Name" value={name} onChange={(e) => setName(e.target.value)} required />
-          <TextField label="Email" value={email} onChange={(e) => setEmail(e.target.value)} />
-          <TextField label="Phone" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} />
-        </Stack>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="contained" onClick={submit} disabled={isLoading}>Create</Button>
-      </DialogActions>
+      <form onSubmit={(event) => { event.preventDefault(); void form.handleSubmit(); }}>
+        <DialogContent>
+          <Stack spacing={2} mt={1}>
+            {isError && <Alert severity="error">We couldn’t create the client. Please try again.</Alert>}
+
+            <form.Field name="name">
+              {(field) => (
+                <TextField
+                  label="Name"
+                  required
+                  value={field.state.value}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                  error={field.state.meta.errors.length > 0}
+                />
+              )}
+            </form.Field>
+
+            <form.Field name="email">
+              {(field) => (
+                <TextField label="Email" value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} onBlur={field.handleBlur} />
+              )}
+            </form.Field>
+
+            <form.Field name="phoneNumber">
+              {(field) => (
+                <TextField label="Phone" value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} onBlur={field.handleBlur} />
+              )}
+            </form.Field>
+
+            <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
+              {(formError) => (formError ? <Alert severity="warning">Enter an email or a phone number.</Alert> : null)}
+            </form.Subscribe>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={onClose}>Cancel</Button>
+          <Button type="submit" variant="contained">Create</Button>
+        </DialogActions>
+      </form>
     </Dialog>
   );
 }
 ```
 
-- [ ] **Step 4: Run it (green)**
+> TanStack Form v1 surfaces the Zod schema's object-level error (the `contact` refine, which maps to no single field) via the form-level error map. The selector `state.errorMap.onSubmit` reads that on-submit error; confirm the exact shape against the installed `@tanstack/react-form@1.x` and adjust the selector if needed (the requirement: when the schema fails, show "Enter an email or a phone number." and do not call the mutation). The `name` `min(1)` failure maps to the `name` field and blocks submit too.
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/CreateClientDialog'`
-Expected: PASS (3 tests).
+- [ ] **Step 4: Run it (green) + commit**
 
-- [ ] **Step 5: Commit**
+Run: `zsh -lc 'pnpm vitest run src/features/clients/dialogs/CreateClientDialog'` → PASS (3).
 
 ```bash
-git add frontend/ && git commit -m "Add CreateClientDialog (Zod validation, request capture, success navigation, 400 surfacing)"
+git add frontend/ && git commit -m "Add CreateClientDialog (TanStack Form + Zod, request capture, success navigation, 400 surfacing)"
 ```
 
 ---
 
-## Task 11: Client detail page
+## Task 12: Client detail page
 
-**Files:** Create `frontend/src/features/clients/ClientDetailPage.tsx`; Test `frontend/src/features/clients/ClientDetailPage.test.tsx`
+**Files:** Create `src/features/clients/pages/ClientDetailPage.tsx`; Test `…/ClientDetailPage.test.tsx`
 
 - [ ] **Step 1: Write the failing test**
 
-`frontend/src/features/clients/ClientDetailPage.test.tsx`:
+`frontend/src/features/clients/pages/ClientDetailPage.test.tsx`:
 
 ```tsx
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders } from '../../testing/renderWithProviders';
-import { TestingApiServer } from '../../testing/TestingApiServer';
-import { ModelFactory } from '../../testing/modelFactory';
-import { ClientDetailPage } from './ClientDetailPage';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { TestingApiServer } from '@/testing/TestingApiServer';
+import { ModelFactory } from '@/testing/modelFactory';
+import { ClientDetailPage } from '@/features/clients/pages/ClientDetailPage';
 
 function renderAt(id: string) {
   return renderWithProviders(
@@ -1311,17 +1290,16 @@ describe('ClientDetailPage', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/ClientDetailPage'`
-Expected: FAIL — `./ClientDetailPage` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientDetailPage'` → FAIL.
 
 - [ ] **Step 3: Implement the page**
 
-`frontend/src/features/clients/ClientDetailPage.tsx`:
+`frontend/src/features/clients/pages/ClientDetailPage.tsx`:
 
 ```tsx
 import { useParams } from 'react-router-dom';
 import { Alert, Box, CircularProgress, Stack, Typography } from '@mui/material';
-import { clientsApi } from './clientsApi';
+import { clientsApi } from '@/features/clients/api/clientsApi';
 
 export function ClientDetailPage() {
   const { id = '' } = useParams();
@@ -1342,12 +1320,9 @@ export function ClientDetailPage() {
 }
 ```
 
-- [ ] **Step 4: Run it (green)**
+- [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/ClientDetailPage'`
-Expected: PASS (2 tests).
-
-- [ ] **Step 5: Commit**
+Run: `zsh -lc 'pnpm vitest run src/features/clients/pages/ClientDetailPage'` → PASS (2).
 
 ```bash
 git add frontend/ && git commit -m "Add ClientDetailPage (details + not-found state)"
@@ -1355,9 +1330,9 @@ git add frontend/ && git commit -m "Add ClientDetailPage (details + not-found st
 
 ---
 
-## Task 12: Auth guard, welcome, and unauthorized pages
+## Task 13: Auth guard, welcome, and unauthorized pages
 
-**Files:** Create `frontend/src/routes/RequireAuth.tsx`, `frontend/src/routes/WelcomePage.tsx`, `frontend/src/routes/UnauthorizedPage.tsx`; Test `frontend/src/routes/RequireAuth.test.tsx`
+**Files:** Create `src/routes/RequireAuth.tsx`, `WelcomePage.tsx`, `UnauthorizedPage.tsx`; Test `src/routes/RequireAuth.test.tsx`
 
 - [ ] **Step 1: Write the failing test**
 
@@ -1367,8 +1342,8 @@ git add frontend/ && git commit -m "Add ClientDetailPage (details + not-found st
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders } from '../testing/renderWithProviders';
-import { RequireAuth } from './RequireAuth';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { RequireAuth } from '@/routes/RequireAuth';
 
 function Protected() {
   return (
@@ -1382,12 +1357,12 @@ function Protected() {
 }
 
 describe('RequireAuth', () => {
-  it('renders the protected content when authenticated', () => {
+  it('renders protected content when authenticated', () => {
     renderWithProviders(<Protected />, { route: '/clients', auth: { isAuthenticated: true } });
     expect(screen.getByText('secret clients')).toBeInTheDocument();
   });
 
-  it('triggers login when unauthenticated', () => {
+  it('triggers login (with returnTo) when unauthenticated', () => {
     const login = vi.fn();
     renderWithProviders(<Protected />, { route: '/clients', auth: { isAuthenticated: false, login } });
     expect(login).toHaveBeenCalledWith('/clients');
@@ -1403,8 +1378,7 @@ describe('RequireAuth', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'`
-Expected: FAIL — `./RequireAuth` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'` → FAIL.
 
 - [ ] **Step 3: Implement the guard + pages**
 
@@ -1414,7 +1388,7 @@ Expected: FAIL — `./RequireAuth` does not exist.
 import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { CircularProgress } from '@mui/material';
-import { useAuth } from '../shared/auth/useAuth';
+import { useAuth } from '@/shared/auth/auth';
 
 export function RequireAuth() {
   const auth = useAuth();
@@ -1436,9 +1410,8 @@ export function RequireAuth() {
 `frontend/src/routes/WelcomePage.tsx`:
 
 ```tsx
-import { Box, Typography } from '@mui/material';
+import { Box, Link, Typography } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom';
-import { Link } from '@mui/material';
 
 export function WelcomePage() {
   return (
@@ -1465,33 +1438,30 @@ export function UnauthorizedPage() {
 }
 ```
 
-- [ ] **Step 4: Run it (green)**
+- [ ] **Step 4: Run it (green) + commit**
 
-Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'`
-Expected: PASS (3 tests).
-
-- [ ] **Step 5: Commit**
+Run: `zsh -lc 'pnpm vitest run src/routes/RequireAuth'` → PASS (3).
 
 ```bash
-git add frontend/ && git commit -m "Add RequireAuth guard (login with returnTo, error→/unauthorized) and welcome/unauthorized pages"
+git add frontend/ && git commit -m "Add RequireAuth guard (login returnTo, error→/unauthorized) and welcome/unauthorized pages"
 ```
 
 ---
 
-## Task 13: Router and app shell
+## Task 14: Router and app shell
 
-**Files:** Create `frontend/src/app/AppLayout.tsx`, `frontend/src/app/router.tsx`, `frontend/src/app/App.tsx`; Replace `frontend/src/main.tsx`; Test `frontend/src/app/router.test.tsx`
+**Files:** Create `src/app/AppLayout.tsx`, `src/app/router.tsx`, `src/app/ConfiguredApp.tsx`, `src/app/App.tsx`; Replace `src/main.tsx`; Test `src/app/router.test.tsx`
 
-- [ ] **Step 1: Write the failing test (routing behavior with a memory router)**
+- [ ] **Step 1: Write the failing test**
 
 `frontend/src/app/router.test.tsx`:
 
 ```tsx
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithProviders } from '../testing/renderWithProviders';
-import { appRoutes } from './router';
 import { Routes } from 'react-router-dom';
+import { renderWithProviders } from '@/testing/renderWithProviders';
+import { appRoutes } from '@/app/router';
 
 describe('app routes', () => {
   it('redirects / to /welcome when authenticated', async () => {
@@ -1508,17 +1478,16 @@ describe('app routes', () => {
 
 - [ ] **Step 2: Run it (red)**
 
-Run: `zsh -lc 'pnpm vitest run src/app/router'`
-Expected: FAIL — `./router` does not exist.
+Run: `zsh -lc 'pnpm vitest run src/app/router'` → FAIL.
 
-- [ ] **Step 3: Create the layout, routes, and app**
+- [ ] **Step 3: Layout, routes, configured app, app, main**
 
 `frontend/src/app/AppLayout.tsx`:
 
 ```tsx
 import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material';
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '../shared/auth/useAuth';
+import { useAuth } from '@/shared/auth/auth';
 
 export function AppLayout() {
   const auth = useAuth();
@@ -1527,9 +1496,7 @@ export function AppLayout() {
       <AppBar position="static">
         <Toolbar sx={{ justifyContent: 'space-between' }}>
           <Typography variant="h6">modern-fmis</Typography>
-          {auth.isAuthenticated && (
-            <Button color="inherit" onClick={auth.logout}>{auth.userEmail ?? 'Log out'}</Button>
-          )}
+          {auth.isAuthenticated && <Button color="inherit" onClick={auth.logout}>{auth.userEmail ?? 'Log out'}</Button>}
         </Toolbar>
       </AppBar>
       <Container sx={{ py: 3 }}><Outlet /></Container>
@@ -1542,12 +1509,12 @@ export function AppLayout() {
 
 ```tsx
 import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
-import { AppLayout } from './AppLayout';
-import { RequireAuth } from '../routes/RequireAuth';
-import { WelcomePage } from '../routes/WelcomePage';
-import { UnauthorizedPage } from '../routes/UnauthorizedPage';
-import { ClientsListPage } from '../features/clients/ClientsListPage';
-import { ClientDetailPage } from '../features/clients/ClientDetailPage';
+import { AppLayout } from '@/app/AppLayout';
+import { RequireAuth } from '@/routes/RequireAuth';
+import { WelcomePage } from '@/routes/WelcomePage';
+import { UnauthorizedPage } from '@/routes/UnauthorizedPage';
+import { ClientsListPage } from '@/features/clients/pages/ClientsListPage';
+import { ClientDetailPage } from '@/features/clients/pages/ClientDetailPage';
 
 export const appRoutes = (
   <>
@@ -1566,33 +1533,32 @@ export const appRoutes = (
 export const router = createBrowserRouter(createRoutesFromElements(appRoutes));
 ```
 
-`frontend/src/app/App.tsx`:
+`frontend/src/app/ConfiguredApp.tsx`:
 
 ```tsx
+import { useMemo } from 'react';
 import { Auth0Provider, type AppState } from '@auth0/auth0-react';
 import { Provider } from 'react-redux';
 import { RouterProvider } from 'react-router-dom';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
 import { CssBaseline } from '@mui/material';
-import type { AppConfig } from '../shared/config/appConfig';
-import { ConfigProvider } from '../shared/config/ConfigContext';
-import { AuthProvider } from '../shared/auth/AuthProvider';
-import { setApiBaseUrl } from '../shared/api/baseApi';
-import { createStore } from './store';
-import { router } from './router';
+import { useConfig } from '@/shared/config/ConfigContext';
+import { AuthProvider } from '@/shared/auth/auth';
+import { createStore } from '@/app/store';
+import { router } from '@/app/router';
 
 const theme = createTheme();
 
-export function App({ config }: { config: AppConfig }) {
-  setApiBaseUrl(config.apiBaseUrl);
-  const store = createStore();
+export function ConfiguredApp() {
+  const config = useConfig();
+  const store = useMemo(() => createStore(config), [config]);
 
   const onRedirectCallback = (appState?: AppState) => {
-    router.navigate(appState?.returnTo ?? '/welcome');
+    void router.navigate(appState?.returnTo ?? '/welcome');
   };
 
   return (
-    <ConfigProvider config={config}>
+    <Provider store={store}>
       <Auth0Provider
         domain={config.auth.domain}
         clientId={config.auth.clientId}
@@ -1600,14 +1566,27 @@ export function App({ config }: { config: AppConfig }) {
         onRedirectCallback={onRedirectCallback}
       >
         <AuthProvider>
-          <Provider store={store}>
-            <ThemeProvider theme={theme}>
-              <CssBaseline />
-              <RouterProvider router={router} />
-            </ThemeProvider>
-          </Provider>
+          <ThemeProvider theme={theme}>
+            <CssBaseline />
+            <RouterProvider router={router} />
+          </ThemeProvider>
         </AuthProvider>
       </Auth0Provider>
+    </Provider>
+  );
+}
+```
+
+`frontend/src/app/App.tsx`:
+
+```tsx
+import { ConfigProvider } from '@/shared/config/ConfigContext';
+import { ConfiguredApp } from '@/app/ConfiguredApp';
+
+export function App() {
+  return (
+    <ConfigProvider>
+      <ConfiguredApp />
     </ConfigProvider>
   );
 }
@@ -1618,91 +1597,67 @@ export function App({ config }: { config: AppConfig }) {
 ```tsx
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { loadAppConfig } from './shared/config/appConfig';
-import { App } from './app/App';
+import { App } from '@/app/App';
 
-async function bootstrap() {
-  const root = createRoot(document.getElementById('root')!);
-  try {
-    const config = await loadAppConfig();
-    root.render(<StrictMode><App config={config} /></StrictMode>);
-  } catch (error) {
-    root.render(<div role="alert">Failed to load application configuration.</div>);
-    throw error;
-  }
-}
-
-void bootstrap();
+createRoot(document.getElementById('root')!).render(<StrictMode><App /></StrictMode>);
 ```
 
-- [ ] **Step 4: Run it (green) + typecheck**
+- [ ] **Step 4: Run it (green), full suite, typecheck**
 
-Run: `zsh -lc 'pnpm vitest run src/app/router && pnpm tsc --noEmit'`
-Expected: PASS (2 tests); no type errors.
+Run: `zsh -lc 'pnpm vitest run && pnpm tsc --noEmit'` → all green.
 
-- [ ] **Step 5: Run the full suite**
-
-Run: `zsh -lc 'pnpm vitest run'`
-Expected: ALL pass.
-
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Add app shell: layout, router (/, /welcome, /clients, /clients/:id, /unauthorized), Auth0 bootstrap with deep-link returnTo"
+git add frontend/ && git commit -m "Add app shell: layout, router, ConfiguredApp (store+Auth0+AuthProvider), thin main; deep-link returnTo"
 ```
 
 ---
 
-## Task 14: Zod ↔ OpenAPI contract test
+## Task 15: Zod ↔ OpenAPI contract test
 
-**Files:** Create `frontend/src/features/clients/clientContract.test.ts`
-
-This asserts the frontend Zod schemas still match the backend's published contract. It reads the OpenAPI document from a committed snapshot so the test is hermetic (no running backend); a follow-up can refresh the snapshot from `/openapi/v1.json`.
+**Files:** Create `src/features/clients/schemas/clientContract.test.ts`, `src/features/clients/schemas/openapi.snapshot.json`
 
 - [ ] **Step 1: Capture the backend OpenAPI snapshot**
 
-With the backend running (`cd backend && zsh -lc 'dotnet run --project src/Fmis.Api'` in another shell, or via `docker compose up backend`), save the document:
+With the backend running (`cd backend && zsh -lc 'dotnet run --project src/Fmis.Api'`, or `docker compose up backend`):
 
 ```bash
 cd /Users/bryceklinker/code/uplift-delivery/modern-fmis
-zsh -lc 'curl -s http://localhost:8080/openapi/v1.json' > frontend/src/features/clients/openapi.snapshot.json
+zsh -lc 'curl -s http://localhost:8080/openapi/v1.json' > frontend/src/features/clients/schemas/openapi.snapshot.json
 ```
 
 Stop the backend afterward.
 
 - [ ] **Step 2: Write the contract test**
 
-`frontend/src/features/clients/clientContract.test.ts`:
+`frontend/src/features/clients/schemas/clientContract.test.ts`:
 
 ```ts
 import { describe, it, expect } from 'vitest';
-import openapi from './openapi.snapshot.json';
-import { clientResponseSchema, createClientRequestObjectSchema } from './clientSchemas';
+import openapi from '@/features/clients/schemas/openapi.snapshot.json';
+import { ClientResponseSchema, CreateClientRequestObjectSchema } from '@/features/clients/schemas/ClientSchemas';
 
 function propsOf(schemaName: string): string[] {
-  const schema = (openapi as any).components?.schemas?.[schemaName];
+  const schema = (openapi as { components?: { schemas?: Record<string, { properties?: Record<string, unknown> }> } })
+    .components?.schemas?.[schemaName];
   return Object.keys(schema?.properties ?? {});
 }
 
 describe('client contract matches the backend OpenAPI document', () => {
-  it('ClientResponseModel properties match clientResponseSchema', () => {
-    const apiProps = propsOf('ClientResponseModel').sort();
-    const zodProps = Object.keys(clientResponseSchema.shape).sort();
-    expect(zodProps).toEqual(apiProps);
+  it('ClientResponseModel matches ClientResponseSchema', () => {
+    expect(Object.keys(ClientResponseSchema.shape).sort()).toEqual(propsOf('ClientResponseModel').sort());
   });
 
-  it('CreateClientRequestModel properties match createClientRequestObjectSchema', () => {
-    const apiProps = propsOf('CreateClientRequestModel').sort();
-    const zodProps = Object.keys(createClientRequestObjectSchema.shape).sort();
-    expect(zodProps).toEqual(apiProps);
+  it('CreateClientRequestModel matches CreateClientRequestObjectSchema', () => {
+    expect(Object.keys(CreateClientRequestObjectSchema.shape).sort()).toEqual(propsOf('CreateClientRequestModel').sort());
   });
 });
 ```
 
 - [ ] **Step 3: Run it**
 
-Run: `zsh -lc 'pnpm vitest run src/features/clients/clientContract'`
-Expected: PASS — Zod property names equal the OpenAPI schema property names (`id/name/email/phoneNumber`; `name/email/phoneNumber`). If it fails, the schemas have drifted from the backend — fix the Zod schema (the backend is the source of truth).
+Run: `zsh -lc 'pnpm vitest run src/features/clients/schemas/clientContract'` → PASS (schema property names equal the OpenAPI schema property names). A failure means the schemas drifted from the backend — fix the Zod schema (backend is the source of truth). (Requires `resolveJsonModule` — Vite's default tsconfig has it.)
 
 - [ ] **Step 4: Commit**
 
@@ -1712,11 +1667,11 @@ git add frontend/ && git commit -m "Add Zod↔OpenAPI contract test against the 
 
 ---
 
-## Task 15: Dockerfile and docker-compose frontend service
+## Task 16: Dockerfile and docker-compose frontend service
 
 **Files:** Create `frontend/Dockerfile`, `frontend/nginx.conf`, `frontend/.dockerignore`; Modify `docker-compose.yml`
 
-- [ ] **Step 1: Create the Dockerfile (build once, serve static)**
+- [ ] **Step 1: Dockerfile (build once, serve static)**
 
 `frontend/Dockerfile`:
 
@@ -1735,7 +1690,7 @@ COPY --from=build /app/dist /usr/share/nginx/html
 EXPOSE 80
 ```
 
-- [ ] **Step 2: Create the nginx SPA config**
+- [ ] **Step 2: nginx SPA config**
 
 `frontend/nginx.conf`:
 
@@ -1743,13 +1698,11 @@ EXPOSE 80
 server {
   listen 80;
   root /usr/share/nginx/html;
-  location / {
-    try_files $uri $uri/ /index.html;
-  }
+  location / { try_files $uri $uri/ /index.html; }
 }
 ```
 
-- [ ] **Step 3: Create `.dockerignore`**
+- [ ] **Step 3: `.dockerignore`**
 
 `frontend/.dockerignore`:
 
@@ -1760,7 +1713,7 @@ dist
 
 - [ ] **Step 4: Add the frontend service to `docker-compose.yml`**
 
-Add this service to the existing `docker-compose.yml` (which already has `db` and `backend`), under `services:`:
+Under `services:` in the existing `docker-compose.yml`:
 
 ```yaml
   frontend:
@@ -1773,15 +1726,15 @@ Add this service to the existing `docker-compose.yml` (which already has `db` an
       - backend
 ```
 
-> The committed `public/config.json` (apiBaseUrl `http://localhost:8080`) is baked into the static assets for local dev. In deployed environments the `application` Pulumi stack replaces `config.json`. Note: full login won't complete locally until a real Auth0 tenant exists (infra phase).
+> The committed `public/config.json` (apiBaseUrl `http://localhost:8080`) is baked into the static assets for local dev; deployed environments get their `config.json` from the `application` Pulumi stack. Full login won't complete locally until a real Auth0 tenant exists (infra phase).
 
-- [ ] **Step 5: Build the image to verify it compiles + bundles**
+- [ ] **Step 5: Build the image to verify it bundles**
 
 ```bash
 cd /Users/bryceklinker/code/uplift-delivery/modern-fmis/frontend
 zsh -lc 'docker build -t fmis-frontend-test .'
 ```
-Expected: build succeeds through the nginx stage. Then remove it: `zsh -lc 'docker rmi fmis-frontend-test'`.
+Expected: build succeeds through the nginx stage. Then `zsh -lc 'docker rmi fmis-frontend-test'`.
 
 - [ ] **Step 6: Commit**
 
@@ -1794,12 +1747,11 @@ git commit -m "Add frontend Dockerfile (build once, nginx-served) and docker-com
 
 ## Done criteria
 
-- `cd frontend && zsh -lc 'pnpm vitest run'` passes all tests (config, auth token, requestCapture, modelFactory, client schemas, clientsApi, list/dialog/detail components, RequireAuth, router, contract).
-- `pnpm tsc --noEmit` is clean; `pnpm build` produces `dist/`.
-- The Client UI works against the backend contract: list (with loading/error), create dialog (Zod validation incl. email-or-phone, request carries the data, success → detail, 400 surfaced), detail (with not-found).
-- Build-once/runtime-config: the app loads + Zod-validates `config.json` before render; RTK Query base URL + Auth0 settings come from it.
-- Routing/auth: `/`→`/welcome`, guarded routes, `/unauthorized`, deep-link `returnTo` preserved; Auth0 wrapped behind the `useAuth()` seam.
-- Centralized `src/testing/` harness in use everywhere: `renderWithProviders`, MSW-backed `TestingApiServer` (delay/status/capture), `RequestCapture`, faker `ModelFactory`. No snapshots, no self-mocking, role/label queries throughout.
-- Patterns established for later features to copy: feature slice (`features/clients/`), RTK Query endpoints, the testing harness usage.
+- `cd frontend && zsh -lc 'pnpm vitest run'` passes all tests; `pnpm tsc --noEmit` clean; `pnpm build` produces `dist/`.
+- The Client UI works against the backend contract: list (loading/error), create dialog (TanStack Form + Zod incl. email-or-phone, request carries the data, success → detail, 400 surfaced), detail (with not-found).
+- **No global mutable holders**: API base URL and Auth0 token flow through the store (`createStore(config)` + `AuthProvider` dispatching the token); `baseQuery` reads both from state.
+- Self-loading `ConfigProvider` (Zod-validated, optional `config` prop for tests); thin `main.tsx`; provider order `Provider → Auth0Provider → AuthProvider → Router`.
+- Routing/auth: `/`→`/welcome`, guarded routes, `/unauthorized`, deep-link `returnTo` preserved.
+- Conventions honored: feature subfolders, `@/` aliases (testing via `@/testing`), PascalCase schemas, no parse wrappers, `UPPER_SNAKE_CASE` constants (`TEST_CONFIG`, `DEFAULT_AUTHENTICATED_STATE`, `API_TAGS`), `safeParse` failure tests, `RequestCapture` class, centralized `src/testing/` harness, behavior-first tests (role/label queries, MSW edge, no snapshots/self-mocking).
 - **Deferred:** Playwright E2E + live integrated login (await the Auth0/infrastructure phase).
 ```
