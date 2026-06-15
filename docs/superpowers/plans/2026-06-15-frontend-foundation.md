@@ -250,7 +250,68 @@ export async function loadAppConfig(): Promise<AppConfig> {
 
 Run: `zsh -lc 'pnpm test src/shared/config'` → PASS (2).
 
-- [ ] **Step 5: Self-loading `ConfigProvider` + `useConfig`**
+- [ ] **Step 5: Write the failing `ConfigProvider`/`useConfig` tests**
+
+The MSW harness doesn't exist yet (Task 6), and `config.json` is fetched from the app origin (not the API), so these stub the network edge with `vi.stubGlobal('fetch', …)`.
+
+`frontend/src/shared/config/ConfigContext.test.tsx`:
+
+```tsx
+import { describe, it, expect, vi, afterEach } from 'vitest';
+import { render, screen } from '@testing-library/react';
+import { ConfigProvider, useConfig } from '@/shared/config/ConfigContext';
+import type { AppConfig } from '@/shared/config/appConfig';
+
+const config: AppConfig = {
+  apiBaseUrl: 'http://api.test',
+  auth: { domain: 'test.auth0.com', clientId: 'test', audience: 'https://api.test' },
+};
+
+function ShowApiUrl() {
+  return <div>api:{useConfig().apiBaseUrl}</div>;
+}
+
+afterEach(() => vi.unstubAllGlobals());
+
+describe('ConfigProvider', () => {
+  it('provides a config passed via the config prop', () => {
+    render(<ConfigProvider config={config}><ShowApiUrl /></ConfigProvider>);
+    expect(screen.getByText('api:http://api.test')).toBeInTheDocument();
+  });
+
+  it('loads the config itself and renders children once loaded', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(config), { status: 200 })));
+    render(<ConfigProvider><ShowApiUrl /></ConfigProvider>);
+    expect(await screen.findByText('api:http://api.test')).toBeInTheDocument();
+  });
+
+  it('shows a loading indicator before the config resolves', () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise(() => {})));
+    render(<ConfigProvider><ShowApiUrl /></ConfigProvider>);
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+  });
+
+  it('shows an error fallback when the config fails to load', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => new Response('nope', { status: 500 })));
+    render(<ConfigProvider><ShowApiUrl /></ConfigProvider>);
+    expect(await screen.findByRole('alert')).toHaveTextContent(/failed to load application configuration/i);
+  });
+});
+
+describe('useConfig', () => {
+  it('throws when used outside a ConfigProvider', () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    expect(() => render(<ShowApiUrl />)).toThrow(/useConfig must be used within a ConfigProvider/);
+    consoleError.mockRestore();
+  });
+});
+```
+
+- [ ] **Step 6: Run it (red)**
+
+Run: `zsh -lc 'pnpm test src/shared/config/ConfigContext'` → FAIL (`ConfigContext` does not exist).
+
+- [ ] **Step 7: Self-loading `ConfigProvider` + `useConfig`**
 
 `frontend/src/shared/config/ConfigContext.tsx`:
 
@@ -289,7 +350,11 @@ export function useConfig(): AppConfig {
 }
 ```
 
-- [ ] **Step 6: Local-dev default config**
+- [ ] **Step 8: Run it (green)**
+
+Run: `zsh -lc 'pnpm test src/shared/config && pnpm typecheck'` → all config tests pass (schema + ConfigProvider + useConfig), no type errors.
+
+- [ ] **Step 9: Local-dev default config**
 
 `frontend/public/config.json`:
 
@@ -300,10 +365,10 @@ export function useConfig(): AppConfig {
 }
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 10: Commit**
 
 ```bash
-git add frontend/ && git commit -m "Add runtime config: AppConfigSchema, loadAppConfig, self-loading ConfigProvider"
+git add frontend/ && git commit -m "Add runtime config: AppConfigSchema, loadAppConfig, self-loading ConfigProvider (+ tests)"
 ```
 
 ---
