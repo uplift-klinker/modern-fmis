@@ -23,3 +23,4 @@ export const CreateClientRequestSchema = z
 
 export type ClientResponse = z.infer<typeof ClientResponseSchema>;
 export type ClientList = z.infer<typeof ClientListSchema>;
+export type CreateClientRequest = z.infer<typeof CreateClientRequestSchema>;
