@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { createListSchema } from '@/shared/schemas/listSchema';
 
 export const ClientResponseSchema = z.object({
   id: z.string(),
@@ -7,10 +8,7 @@ export const ClientResponseSchema = z.object({
   phoneNumber: z.string().nullable(),
 });
 
-export const ClientListSchema = z.object({
-  items: z.array(ClientResponseSchema),
-  totalCount: z.number(),
-});
+export const ClientListSchema = createListSchema(ClientResponseSchema);
 
 export const CreateClientRequestSchema = z
   .object({

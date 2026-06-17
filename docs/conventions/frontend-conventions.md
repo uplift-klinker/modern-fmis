@@ -36,6 +36,7 @@ Tests are co-located with their unit (`pages/ClientsListPage.test.tsx`). Testing
 - **No parse wrappers.** Don't write `parseX(value)` that just calls `Schema.parse`. Call `Schema.parse(...)` / `Schema.safeParse(...)` directly at the call site. Functions that do real work (e.g. `loadAppConfig`, which fetches *then* parses) are fine.
 - **Module-level hard constants are `UPPER_SNAKE_CASE`** (`TEST_CONFIG`, `DEFAULT_AUTHENTICATED_STATE`, `API_TAGS`) to signal they are fixed.
 - Methods/functions contain a verb (shared rule).
+- **Repeated schema shapes get a shared factory.** Zod shapes that recur across features live in `src/shared/schemas` as factory functions rather than being hand-rolled per feature. `createListSchema(ItemSchema)` → `{ items: ItemSchema[]; totalCount: number }` is the frontend mirror of the backend's generic `ListResultModel<TModel>`; feature list schemas compose it (`ClientListSchema = createListSchema(ClientResponseSchema)`).
 
 ## Build once, configure at runtime
 
