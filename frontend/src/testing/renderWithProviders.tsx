@@ -1,6 +1,7 @@
 import type { ReactElement, ReactNode } from 'react';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { Provider } from 'react-redux';
+import { MemoryRouter } from 'react-router-dom';
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { appTheme } from '@/shared/theme/theme';
@@ -20,15 +21,18 @@ export function ThemedShell({ children }: { children: ReactNode }) {
 
 export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   config?: AppConfig;
+  route?: string;
 }
 
 export function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}): RenderResult {
-  const { config = TEST_CONFIG, ...renderOptions } = options;
+  const { config = TEST_CONFIG, route = '/', ...renderOptions } = options;
   const store = createStore(config);
   return render(
     <ThemedShell>
       <ConfigProvider config={config}>
-        <Provider store={store}>{ui}</Provider>
+        <Provider store={store}>
+          <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+        </Provider>
       </ConfigProvider>
     </ThemedShell>,
     renderOptions,

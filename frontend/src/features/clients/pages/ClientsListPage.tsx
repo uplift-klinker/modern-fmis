@@ -1,25 +1,26 @@
-import { Alert, CircularProgress, List, ListItemText } from '@mui/material';
-import { clientsApi } from '@/features/clients/api/clientsApi';
+import { Box } from '@mui/material';
+import { Outlet, useNavigate } from 'react-router-dom';
+import { ClientList } from '@/features/clients/components/ClientList';
 
 export function ClientsListPage() {
-  const { data, isLoading, isError } = clientsApi.useGetClientsQuery();
-
-  if (isLoading) {
-    return <CircularProgress aria-label="Loading clients" />;
-  }
-  if (isError) {
-    return <Alert severity="error">We couldn't load clients. Please try again.</Alert>;
-  }
+  const navigate = useNavigate();
 
   return (
-    <List>
-      {data?.items.map((client) => (
-        <ListItemText
-          key={client.id}
-          primary={client.name}
-          secondary={[client.email, client.phoneNumber].filter(Boolean).join(' · ') || '—'}
-        />
-      ))}
-    </List>
+    <Box sx={{ display: 'flex', height: '100%' }}>
+      <Box
+        sx={{
+          width: 320,
+          flexShrink: 0,
+          overflowY: 'auto',
+          borderRight: 1,
+          borderColor: 'divider',
+        }}
+      >
+        <ClientList onSelectClient={(clientId) => navigate(`/clients/${clientId}`)} />
+      </Box>
+      <Box sx={{ flex: 1, overflowY: 'auto' }}>
+        <Outlet />
+      </Box>
+    </Box>
   );
 }
