@@ -3,7 +3,7 @@ import { http, HttpResponse, delay, type HttpHandler } from 'msw';
 import { ModelFactory, type AppConfigOverrides } from '@/testing/ModelFactory';
 import { TEST_CONFIG } from '@/testing/testConfig';
 import type { AppConfig } from '@/shared/config/appConfig';
-import type { ClientList } from '@/features/clients/schemas/ClientSchemas';
+import type { ClientList, ClientResponse } from '@/features/clients/schemas/ClientSchemas';
 import type { RequestCapture } from '@/testing/requestCapture';
 
 export interface SetupEndpointOptions<TBody = never> {
@@ -61,6 +61,14 @@ export const TestingApiServer = {
       http.get(buildEndpointUrl('/clients'), async ({ request }) => {
         await applyCommon(request, options);
         return HttpResponse.json(list, { status: options.status ?? 200 });
+      }),
+    );
+  },
+  setupGetClient(client: ClientResponse, options: SetupEndpointOptions = {}) {
+    server.use(
+      http.get(buildEndpointUrl(`/clients/${client.id}`), async ({ request }) => {
+        await applyCommon(request, options);
+        return HttpResponse.json(client, { status: options.status ?? 200 });
       }),
     );
   },
