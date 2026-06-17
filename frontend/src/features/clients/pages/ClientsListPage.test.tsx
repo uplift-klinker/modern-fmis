@@ -13,6 +13,7 @@ describe('ClientsListPage', () => {
       items: [ModelFactory.createClient({ name: 'Acme Farms' })],
       totalCount: 1,
     });
+
     renderWithProviders(
       <Routes>
         <Route path="/clients" element={<ClientsListPage />}>
@@ -22,6 +23,7 @@ describe('ClientsListPage', () => {
       { route: '/clients' },
     );
     await userEvent.click(await screen.findByText('Acme Farms'));
+
     expect(await screen.findByText('client detail')).toBeInTheDocument();
     expect(screen.getByText('Acme Farms')).toBeInTheDocument();
   });

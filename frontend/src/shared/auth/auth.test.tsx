@@ -10,7 +10,9 @@ function ReadAuth() {
 describe('useAuth', () => {
   it('throws when used outside an AuthProvider', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+
     expect(() => render(<ReadAuth />)).toThrow(/within an AuthProvider/);
+
     consoleError.mockRestore();
   });
 });

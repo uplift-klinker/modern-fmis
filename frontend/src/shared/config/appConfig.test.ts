@@ -11,6 +11,7 @@ describe('AppConfigSchema', () => {
         audience: 'https://api',
       },
     });
+
     expect(result.success).toBe(true);
   });
 
@@ -18,6 +19,7 @@ describe('AppConfigSchema', () => {
     const result = AppConfigSchema.safeParse({
       apiBaseUrl: 'https://api.example.com',
     });
+
     expect(result.success).toBe(false);
   });
 });

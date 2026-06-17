@@ -8,11 +8,13 @@ describe('authSlice', () => {
 
   it('stores a token', () => {
     const state = authReducer(undefined, setAccessToken('token-123'));
+
     expect(state.accessToken).toBe('token-123');
   });
 
   it('clears the token', () => {
     const state = authReducer({ accessToken: 'old' }, setAccessToken(null));
+
     expect(state.accessToken).toBeNull();
   });
 });

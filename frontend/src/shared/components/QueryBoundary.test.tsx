@@ -11,6 +11,7 @@ describe('QueryBoundary', () => {
       </QueryBoundary>,
       { wrapper: ThemedShell },
     );
+
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
@@ -21,6 +22,7 @@ describe('QueryBoundary', () => {
       </QueryBoundary>,
       { wrapper: ThemedShell },
     );
+
     expect(screen.getByText('It broke.')).toBeInTheDocument();
   });
 
@@ -31,6 +33,7 @@ describe('QueryBoundary', () => {
       </QueryBoundary>,
       { wrapper: ThemedShell },
     );
+
     expect(screen.getByText('Acme')).toBeInTheDocument();
   });
 });

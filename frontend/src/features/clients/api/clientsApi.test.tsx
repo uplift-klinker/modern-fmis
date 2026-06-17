@@ -13,7 +13,9 @@ function Probe() {
 describe('clientsApi', () => {
   it('fetches the client list', async () => {
     TestingApiServer.setupGetClientList(ModelFactory.createClientList(2));
+
     renderWithProviders(<Probe />);
+
     expect(await screen.findByText('count:2')).toBeInTheDocument();
   });
 });

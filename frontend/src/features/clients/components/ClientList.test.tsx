@@ -12,20 +12,26 @@ describe('ClientList', () => {
       items: [ModelFactory.createClient({ name: 'Acme Farms', email: 'ops@acme.example', phoneNumber: '555-0100' })],
       totalCount: 1,
     });
+
     renderWithProviders(<ClientList onSelectClient={() => {}} />);
+
     expect(await screen.findByText('Acme Farms')).toBeInTheDocument();
     expect(screen.getByText(/ops@acme\.example/)).toBeInTheDocument();
   });
 
   it('shows a loading indicator while fetching', () => {
     TestingApiServer.setupGetClientList(ModelFactory.createClientList(1), { delayMs: 50 });
+
     renderWithProviders(<ClientList onSelectClient={() => {}} />);
+
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
   });
 
   it('shows an error state when the request fails', async () => {
     TestingApiServer.setupGetClientList(ModelFactory.createClientList(0), { status: 500 });
+
     renderWithProviders(<ClientList onSelectClient={() => {}} />);
+
     expect(await screen.findByText(/couldn't load clients/i)).toBeInTheDocument();
   });
 
@@ -33,8 +39,10 @@ describe('ClientList', () => {
     const client = ModelFactory.createClient({ name: 'Acme Farms' });
     TestingApiServer.setupGetClientList({ items: [client], totalCount: 1 });
     const onSelectClient = vi.fn();
+
     renderWithProviders(<ClientList onSelectClient={onSelectClient} />);
     await userEvent.click(await screen.findByText('Acme Farms'));
+
     expect(onSelectClient).toHaveBeenCalledWith(client.id);
   });
 });

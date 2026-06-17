@@ -80,6 +80,7 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 - **Render the real tree in real providers** via the shared **`renderWithProviders()`** — `<ThemeProvider theme={appTheme}>` + `<CssBaseline>` (mirroring the app's base), `<ConfigProvider config={…}>` (a `ModelFactory.createAppConfig()` value by default), the store (`createStore(config)`), the test token when authenticated, the `AuthContext` value, and a memory router. (The store/auth/router layers are added to it as those pieces land.) A lighter **`ThemedShell`** (`ThemeProvider` + `CssBaseline` only) is the `wrapper` for testing a provider in isolation — e.g. `ConfigProvider`'s own loading/error/self-load tests, which can't be wrapped in another `ConfigProvider`.
 - **Stub only the network edge with MSW.** The whole stack runs for real; MSW is the real network handler. Auth0 is the one external seam (the test `AuthContext` value).
 - `userEvent` (not `fireEvent`); `findBy*`/`waitFor` for async. **No snapshot tests.**
+- **Separate Arrange / Act / Assert with blank lines** — a test reads as setup, then the action, then the assertions, with a blank line between each block. **No `// Arrange`-style comments** (whitespace alone conveys the structure; self-documenting over annotated).
 - **Schema-validation tests use `safeParse`** — assert `Schema.safeParse(value).success` is `true`/`false`, not `expect(() => Schema.parse(value)).toThrow()`. When the parsed value is needed, use `result.data` or a direct `.parse()`.
 
 ### Centralized harness (`src/testing/`)
