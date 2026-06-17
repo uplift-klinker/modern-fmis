@@ -35,9 +35,9 @@ function createClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
   });
 }
 
-function createClientList(count: number): ClientList {
+function createClientList(count: number, template: Partial<ClientResponse> = {}): ClientList {
   return ClientListSchema.parse({
-    items: Array.from({ length: count }, () => createClient()),
+    items: Array.from({ length: count }, () => createClient(template)),
     totalCount: count,
   });
 }
