@@ -16,6 +16,8 @@ const DEFAULT_AUTHENTICATED_STATE: AuthState = {
   isLoading: false,
   hasError: false,
   login: () => {},
+  logout: () => {},
+  userEmail: null,
 };
 
 export function ThemedShell({ children }: { children: ReactNode }) {
