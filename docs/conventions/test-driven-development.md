@@ -29,6 +29,7 @@ Then repeat for the next behavior.
   - Any other testable unit: test first.
 - Tests exercise **real behavior** through the real composition — the command/query bus, or the HTTP pipeline — never mocks. Seed data through the application's own commands. (See [`backend-code-conventions.md`](backend-code-conventions.md).)
 - A bug fix starts with a **failing test that reproduces the bug**, then the fix.
+- **A plan's code block is the destination, not a license to write it.** A task in an implementation plan often shows a complete file (a slice, a provider/seam, a controller). That is the *end state* reached over several red→green cycles — **not** something to paste in wholesale to satisfy one failing test. Write only the slice the current failing test exercises; let later tests (consumers, route guards, app shell, feature pages) drive out the rest of the file — even for seams, providers, and adapters the plan lists in full. Transcribing a whole file to pass a single assertion is a Law 3 violation, regardless of what the plan shows.
 
 ## Plans must be ordered test-first
 
