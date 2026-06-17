@@ -9,12 +9,13 @@ import { API_TAGS } from '@/shared/api/apiTags';
 import type { RootState } from '@/app/store';
 
 const dynamicBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = (args, apiCtx, extra) => {
-  const state = apiCtx.getState() as RootState;
+  const { config } = apiCtx.getState() as RootState;
   return fetchBaseQuery({
-    baseUrl: state.config.apiBaseUrl,
-    prepareHeaders: (headers) => {
-      if (state.auth.accessToken) {
-        headers.set('Authorization', `Bearer ${state.auth.accessToken}`);
+    baseUrl: config.apiBaseUrl,
+    prepareHeaders: (headers, { getState }) => {
+      const { auth } = getState() as RootState;
+      if (auth.accessToken) {
+        headers.set('Authorization', `Bearer ${auth.accessToken}`);
       }
       return headers;
     },
