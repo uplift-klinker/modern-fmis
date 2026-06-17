@@ -1,6 +1,6 @@
 import { api } from '@/shared/api/baseApi';
 import { API_TAGS } from '@/shared/api/apiTags';
-import type { ClientList, ClientResponse } from '@/features/clients/schemas/ClientSchemas';
+import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
 
 export const clientsApi = api.injectEndpoints({
   endpoints: (build) => ({
@@ -11,6 +11,10 @@ export const clientsApi = api.injectEndpoints({
     getClient: build.query<ClientResponse, string>({
       query: (id) => `/clients/${id}`,
       providesTags: [API_TAGS.Client],
+    }),
+    createClient: build.mutation<ClientResponse, CreateClientRequest>({
+      query: (body) => ({ url: '/clients', method: 'POST', body }),
+      invalidatesTags: [API_TAGS.Client],
     }),
   }),
 });
