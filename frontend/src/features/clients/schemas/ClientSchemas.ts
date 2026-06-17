@@ -20,3 +20,6 @@ export const CreateClientRequestSchema = z
     (value) => Boolean(value.email?.trim()) || Boolean(value.phoneNumber?.trim()),
     { message: 'Enter an email or a phone number.', path: ['contact'] },
   );
+
+export type ClientResponse = z.infer<typeof ClientResponseSchema>;
+export type ClientList = z.infer<typeof ClientListSchema>;

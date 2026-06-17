@@ -1,5 +1,11 @@
 import { faker } from '@faker-js/faker';
 import { AppConfigSchema, type AppConfig } from '@/shared/config/appConfig';
+import {
+  ClientResponseSchema,
+  ClientListSchema,
+  type ClientResponse,
+  type ClientList,
+} from '@/features/clients/schemas/ClientSchemas';
 
 export type AppConfigOverrides = Partial<Omit<AppConfig, 'auth'>> & {
   auth?: Partial<AppConfig['auth']>;
@@ -19,6 +25,25 @@ function createAppConfig(overrides: AppConfigOverrides = {}): AppConfig {
   });
 }
 
+function createClient(overrides: Partial<ClientResponse> = {}): ClientResponse {
+  return ClientResponseSchema.parse({
+    id: faker.string.uuid(),
+    name: faker.company.name(),
+    email: faker.internet.email(),
+    phoneNumber: faker.phone.number(),
+    ...overrides,
+  });
+}
+
+function createClientList(count: number): ClientList {
+  return ClientListSchema.parse({
+    items: Array.from({ length: count }, () => createClient()),
+    totalCount: count,
+  });
+}
+
 export const ModelFactory = {
   createAppConfig,
+  createClient,
+  createClientList,
 };
