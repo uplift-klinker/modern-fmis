@@ -6,9 +6,17 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { appTheme } from '@/shared/theme/theme';
 import { ConfigProvider } from '@/shared/config/ConfigContext';
+import { AuthContext, type AuthState } from '@/shared/auth/auth';
 import { createStore } from '@/app/store';
 import { TEST_CONFIG } from '@/testing/testConfig';
 import type { AppConfig } from '@/shared/config/appConfig';
+
+const DEFAULT_AUTHENTICATED_STATE: AuthState = {
+  isAuthenticated: true,
+  isLoading: false,
+  hasError: false,
+  login: () => {},
+};
 
 export function ThemedShell({ children }: { children: ReactNode }) {
   return (
@@ -22,16 +30,20 @@ export function ThemedShell({ children }: { children: ReactNode }) {
 export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   config?: AppConfig;
   route?: string;
+  auth?: Partial<AuthState>;
 }
 
 export function renderWithProviders(ui: ReactElement, options: RenderWithProvidersOptions = {}): RenderResult {
-  const { config = TEST_CONFIG, route = '/', ...renderOptions } = options;
+  const { config = TEST_CONFIG, route = '/', auth, ...renderOptions } = options;
   const store = createStore(config);
+  const authState: AuthState = { ...DEFAULT_AUTHENTICATED_STATE, ...auth };
   return render(
     <ThemedShell>
       <ConfigProvider config={config}>
         <Provider store={store}>
-          <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+          <AuthContext.Provider value={authState}>
+            <MemoryRouter initialEntries={[route]}>{ui}</MemoryRouter>
+          </AuthContext.Provider>
         </Provider>
       </ConfigProvider>
     </ThemedShell>,
