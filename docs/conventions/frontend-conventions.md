@@ -92,5 +92,5 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 
 ### Contract & E2E
 
-- **Zod↔OpenAPI contract test** asserts the schemas still match the backend's `/openapi/v1.json` — verify against, never generate from.
+- **Zod↔OpenAPI contract test** (`pnpm test:contract`, a separate vitest config — **not** part of the hermetic `pnpm test`) **starts the real backend via `docker compose`** (a `globalSetup` brings up `backend`+`db`, polls `/openapi/v1.json` until ready, and tears down after) and asserts the **live** OpenAPI `components.schemas` property names match the Zod schema shapes (`ClientResponseSchema`, `CreateClientRequestObjectSchema`, `ClientListSchema`). Verify against the real API — never generate from it, never a committed snapshot. Files are named `*.contract.ts` so the offline unit suite never runs them; requires Docker.
 - **Playwright E2E** (real browser, real login) is added once a real Auth0 tenant exists (infrastructure phase) — never faked in earlier.
