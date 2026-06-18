@@ -10,6 +10,7 @@ internal sealed class StackMocks : IMocks
     {
         var state = args.Inputs.ToBuilder();
         state["clientId"] = $"{args.Name}_client_id";
+        state["clientSecret"] = $"{args.Name}_clientSecret";
         return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
     }
 

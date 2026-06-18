@@ -78,9 +78,17 @@ public class AuthStack : Stack
                 GrantTypes = { "password", "http://auth0.com/oauth/grant-type/password-realm" },
             });
 
-            E2eClientId = e2eClient.ClientId!;
-            E2eUsername = Output.CreateSecret(user.Email!);
-            E2ePassword = Output.CreateSecret(password.Result);
+            var e2eCredentials = new Auth0.ClientCredentials(ResourceNames.For(env, "auth", "e2e-creds"),
+                new Auth0.ClientCredentialsArgs
+                {
+                    ClientId = e2eClient.ClientId,
+                    AuthenticationMethod = "client_secret_post",
+                });
+
+            E2eClientId = e2eClient.ClientId.Apply(value => (string?)value);
+            E2eUsername = Output.CreateSecret(user.Email.Apply(value => (string?)value));
+            E2ePassword = Output.CreateSecret(password.Result.Apply(value => (string?)value));
+            E2eClientSecret = Output.CreateSecret(e2eCredentials.ClientSecret.Apply(value => (string?)value));
         }
     }
 }
