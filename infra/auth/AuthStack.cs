@@ -50,7 +50,7 @@ public class AuthStack : Stack
         SpaClientId = spa.ClientId!;
         Audience = api.Identifier!;
 
-        E2eClientId = Output.Create((string?)null);
+        E2eClientId = Output.CreateSecret((string?)null);
         E2eClientSecret = Output.CreateSecret((string?)null);
         E2eUsername = Output.CreateSecret((string?)null);
         E2ePassword = Output.CreateSecret((string?)null);
@@ -85,7 +85,7 @@ public class AuthStack : Stack
                     AuthenticationMethod = "client_secret_post",
                 });
 
-            E2eClientId = e2eClient.ClientId.Apply(value => (string?)value);
+            E2eClientId = Output.CreateSecret(e2eClient.ClientId.Apply(value => (string?)value));
             E2eUsername = Output.CreateSecret(user.Email.Apply(value => (string?)value));
             E2ePassword = Output.CreateSecret(password.Result.Apply(value => (string?)value));
             E2eClientSecret = Output.CreateSecret(e2eCredentials.ClientSecret.Apply(value => (string?)value));

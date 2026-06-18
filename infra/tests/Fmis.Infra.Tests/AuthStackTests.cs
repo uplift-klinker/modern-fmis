@@ -70,12 +70,15 @@ public class AuthStackTests
     }
 
     [Fact]
-    public async Task Exposes_the_e2e_client_secret_when_enabled()
+    public async Task Exposes_the_e2e_credentials_when_enabled()
     {
         var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: true);
         var stack = resources.OfType<Fmis.Infra.Auth.AuthStack>().Single();
 
+        Assert.NotNull(await InfraTesting.GetAsync(stack.E2eClientId));
         Assert.NotNull(await InfraTesting.GetAsync(stack.E2eClientSecret));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.E2eUsername));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.E2ePassword));
     }
 
     [Fact]
