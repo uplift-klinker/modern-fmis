@@ -1,4 +1,3 @@
 using Pulumi;
-using Fmis.Infra.Auth;
 
-return await Deployment.RunAsync<AuthStack>();
+return await Deployment.RunAsync<Fmis.Infra.Auth.AuthStack>();

@@ -1,0 +1,2 @@
+config:
+  fmis-auth:enableE2eUser: "true"
