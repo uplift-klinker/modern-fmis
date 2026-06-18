@@ -29,5 +29,10 @@ public class AuthStack : Stack
             Identifier = ResourceNames.Audience(env),
             SigningAlg = "RS256",
         });
+
+        var tenant = new Auth0.Tenant(ResourceNames.For(env, "auth", "tenant"), new Auth0.TenantArgs
+        {
+            DefaultDirectory = "Username-Password-Authentication",
+        });
     }
 }

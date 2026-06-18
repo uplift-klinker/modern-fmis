@@ -23,4 +23,13 @@ public class AuthStackTests
         Assert.Equal("fmis-dev-auth-api", await InfraTesting.GetAsync(api.Name));
         Assert.Equal("https://dev.api.modern-fmis", await InfraTesting.GetAsync(api.Identifier));
     }
+
+    [Fact]
+    public async Task Sets_the_tenant_default_directory_to_the_database_connection()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        var tenant = resources.OfType<Auth0.Tenant>().Single();
+        Assert.Equal("Username-Password-Authentication", await InfraTesting.GetAsync(tenant.DefaultDirectory));
+    }
 }
