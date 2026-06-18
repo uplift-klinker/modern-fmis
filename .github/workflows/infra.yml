@@ -1,0 +1,76 @@
+name: infra
+
+on:
+  pull_request:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/infra.yml"]
+  push:
+    branches: [main]
+    paths: ["infra/**", ".github/workflows/infra.yml"]
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  ENVIRONMENT: dev
+  PULUMI_STATE_ACCOUNT: fmisdevtfstate
+  PULUMI_STATE_CONTAINER: pulumi-state
+  RESOURCE_GROUP: fmis-dev-infra
+
+jobs:
+  infra:
+    runs-on: ubuntu-latest
+    environment: dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: infra/global.json
+
+      - name: Build and test infra
+        run: dotnet test infra/Fmis.Infra.slnx --configuration Release
+
+      - uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Bootstrap Pulumi state backend
+        run: ./infra/scripts/bootstrap-state.sh
+
+      - uses: pulumi/actions@v6
+
+      - name: Pulumi login (azblob)
+        run: pulumi login "azblob://${PULUMI_STATE_CONTAINER}?storage_account=${PULUMI_STATE_ACCOUNT}"
+
+      - name: Select or init the dev stack
+        working-directory: infra/auth
+        run: pulumi stack select dev || pulumi stack init dev
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Set Auth0 provider config
+        working-directory: infra/auth
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        run: |
+          pulumi config set auth0:domain "${{ secrets.AUTH0_DOMAIN }}"
+          pulumi config set auth0:clientId "${{ secrets.AUTH0_CLIENT_ID }}"
+          pulumi config set --secret auth0:clientSecret "${{ secrets.AUTH0_CLIENT_SECRET }}"
+
+      - name: Preview (pull request)
+        if: github.event_name == 'pull_request'
+        working-directory: infra/auth
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        run: pulumi preview
+
+      - name: Up (merge to main)
+        if: github.event_name == 'push'
+        working-directory: infra/auth
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+        run: pulumi up --yes
