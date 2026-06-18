@@ -29,5 +29,5 @@ Modular monolith, vertical slices. Backend dependency rule: `Api → Core, Model
 
 ## Toolchain notes
 
-- The .NET SDK is pinned by `backend/global.json`. Run .NET CLI commands from `backend/` so the pin applies (e.g. `cd backend && dotnet test Fmis.slnx`). The solution file is `backend/Fmis.slnx`.
+- The .NET SDK is pinned by the root `global.json`. Run .NET CLI commands from the **repo root** — the pin applies automatically (e.g. `dotnet test Fmis.slnx`). The solution file is the root `Fmis.slnx`.
 - `bin/` and `obj/` are build output — never read or edit them.

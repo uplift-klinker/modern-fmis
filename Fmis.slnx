@@ -1,0 +1,26 @@
+<Solution>
+  <Folder Name="/backend/src/">
+    <Project Path="backend/src/Fmis.Api/Fmis.Api.csproj" />
+    <Project Path="backend/src/Fmis.Core/Fmis.Core.csproj" />
+    <Project Path="backend/src/Fmis.Models/Fmis.Models.csproj" />
+  </Folder>
+  <Folder Name="/backend/tests/">
+    <Project Path="backend/tests/Fmis.Api.Tests/Fmis.Api.Tests.csproj" />
+    <Project Path="backend/tests/Fmis.Core.Tests/Fmis.Core.Tests.csproj" />
+    <Project Path="backend/tests/Fmis.TestSupport/Fmis.TestSupport.csproj" />
+  </Folder>
+  <Folder Name="/infra/">
+    <Project Path="infra/Fmis.Infra.Common/Fmis.Infra.Common.csproj" />
+    <Project Path="infra/auth/Fmis.Infra.Auth.csproj" />
+    <Project Path="infra/tests/Fmis.Infra.Tests/Fmis.Infra.Tests.csproj" />
+  </Folder>
+  <Folder Name="/frontend/">
+    <File Path="frontend/package.json" />
+    <File Path="frontend/tsconfig.json" />
+    <File Path="frontend/tsconfig.app.json" />
+    <File Path="frontend/tsconfig.node.json" />
+    <File Path="frontend/vite.config.ts" />
+    <File Path="frontend/vitest.contract.config.ts" />
+    <File Path="frontend/pnpm-workspace.yaml" />
+  </Folder>
+</Solution>

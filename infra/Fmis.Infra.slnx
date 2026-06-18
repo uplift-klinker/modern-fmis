@@ -1,9 +1,0 @@
-<Solution>
-  <Folder Name="/auth/">
-    <Project Path="auth/Fmis.Infra.Auth.csproj" />
-  </Folder>
-  <Folder Name="/tests/">
-    <Project Path="tests/Fmis.Infra.Tests/Fmis.Infra.Tests.csproj" />
-  </Folder>
-  <Project Path="Fmis.Infra.Common/Fmis.Infra.Common.csproj" />
-</Solution>
