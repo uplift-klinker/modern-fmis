@@ -13,4 +13,14 @@ public class AuthStackTests
         var spa = clients.Single(c => InfraTesting.GetAsync(c.AppType).Result == "spa");
         Assert.Equal("fmis-dev-auth-spa", await InfraTesting.GetAsync(spa.Name));
     }
+
+    [Fact]
+    public async Task Creates_the_api_resource_server_with_the_env_named_audience()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        var api = resources.OfType<Auth0.ResourceServer>().Single();
+        Assert.Equal("fmis-dev-auth-api", await InfraTesting.GetAsync(api.Name));
+        Assert.Equal("https://dev.api.modern-fmis", await InfraTesting.GetAsync(api.Identifier));
+    }
 }

@@ -21,5 +21,13 @@ public class AuthStack : Stack
             AllowedLogoutUrls = { "http://localhost:5173" },
             WebOrigins = { "http://localhost:5173" },
         });
+
+        var apiName = ResourceNames.For(env, "auth", "api");
+        var api = new Auth0.ResourceServer(apiName, new Auth0.ResourceServerArgs
+        {
+            Name = apiName,
+            Identifier = ResourceNames.Audience(env),
+            SigningAlg = "RS256",
+        });
     }
 }
