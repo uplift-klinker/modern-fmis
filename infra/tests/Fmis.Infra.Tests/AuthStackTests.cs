@@ -32,4 +32,29 @@ public class AuthStackTests
         var tenant = resources.OfType<Auth0.Tenant>().Single();
         Assert.Equal("Username-Password-Authentication", await InfraTesting.GetAsync(tenant.DefaultDirectory));
     }
+
+    [Fact]
+    public async Task Provisions_the_e2e_user_and_client_when_enabled()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: true);
+
+        var user = resources.OfType<Auth0.User>().Single();
+        Assert.Equal("Username-Password-Authentication", await InfraTesting.GetAsync(user.ConnectionName));
+
+        var e2eClient = resources.OfType<Auth0.Client>()
+            .Single(c => InfraTesting.GetAsync(c.Name).Result == "fmis-dev-auth-e2e");
+        var grantTypes = await InfraTesting.GetAsync(e2eClient.GrantTypes);
+        Assert.Contains("password", grantTypes);
+    }
+
+    [Fact]
+    public async Task Omits_the_e2e_user_and_client_when_disabled()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        Assert.Empty(resources.OfType<Auth0.User>());
+        Assert.DoesNotContain(
+            resources.OfType<Auth0.Client>(),
+            c => InfraTesting.GetAsync(c.Name).Result == "fmis-dev-auth-e2e");
+    }
 }

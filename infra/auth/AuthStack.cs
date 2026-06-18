@@ -1,6 +1,7 @@
 using Pulumi;
 using Auth0 = Pulumi.Auth0;
 using Fmis.Infra.Common;
+using Random = Pulumi.Random;
 
 namespace Fmis.Infra.Auth;
 
@@ -34,5 +35,29 @@ public class AuthStack : Stack
         {
             DefaultDirectory = "Username-Password-Authentication",
         });
+
+        var config = new Config();
+        if (config.GetBoolean("enableE2eUser") ?? false)
+        {
+            var password = new Random.RandomPassword(ResourceNames.For(env, "auth", "e2e-password"),
+                new Random.RandomPasswordArgs { Length = 24, Special = true });
+
+            var user = new Auth0.User(ResourceNames.For(env, "auth", "e2e-user"), new Auth0.UserArgs
+            {
+                ConnectionName = "Username-Password-Authentication",
+                Email = "e2e@dev.modern-fmis.test",
+                EmailVerified = true,
+                Password = password.Result,
+            });
+
+            var e2eName = ResourceNames.For(env, "auth", "e2e");
+            var e2eClient = new Auth0.Client(e2eName, new Auth0.ClientArgs
+            {
+                Name = e2eName,
+                AppType = "non_interactive",
+                OidcConformant = true,
+                GrantTypes = { "password", "http://auth0.com/oauth/grant-type/password-realm" },
+            });
+        }
     }
 }
