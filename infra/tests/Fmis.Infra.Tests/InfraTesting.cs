@@ -7,7 +7,11 @@ namespace Fmis.Infra.Tests;
 internal sealed class StackMocks : IMocks
 {
     public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
-        => Task.FromResult<(string?, object)>(($"{args.Name}_id", args.Inputs));
+    {
+        var state = args.Inputs.ToBuilder();
+        state["clientId"] = $"{args.Name}_client_id";
+        return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
+    }
 
     public Task<object> CallAsync(MockCallArgs args)
         => Task.FromResult<object>(args.Args);

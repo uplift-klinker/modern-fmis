@@ -7,6 +7,14 @@ namespace Fmis.Infra.Auth;
 
 public class AuthStack : Stack
 {
+    [Output("domain")] public Output<string> Domain { get; private set; }
+    [Output("spaClientId")] public Output<string> SpaClientId { get; private set; }
+    [Output("audience")] public Output<string> Audience { get; private set; }
+    [Output("e2eClientId")] public Output<string?> E2eClientId { get; private set; }
+    [Output("e2eClientSecret")] public Output<string?> E2eClientSecret { get; private set; }
+    [Output("e2eUsername")] public Output<string?> E2eUsername { get; private set; }
+    [Output("e2ePassword")] public Output<string?> E2ePassword { get; private set; }
+
     public AuthStack()
     {
         var env = Deployment.Instance.StackName;
@@ -36,6 +44,17 @@ public class AuthStack : Stack
             DefaultDirectory = "Username-Password-Authentication",
         });
 
+        var auth0Config = new Config("auth0");
+
+        Domain = Output.Create(auth0Config.Require("domain"));
+        SpaClientId = spa.ClientId!;
+        Audience = api.Identifier!;
+
+        E2eClientId = Output.Create((string?)null);
+        E2eClientSecret = Output.CreateSecret((string?)null);
+        E2eUsername = Output.CreateSecret((string?)null);
+        E2ePassword = Output.CreateSecret((string?)null);
+
         var config = new Config();
         if (config.GetBoolean("enableE2eUser") ?? false)
         {
@@ -58,6 +77,10 @@ public class AuthStack : Stack
                 OidcConformant = true,
                 GrantTypes = { "password", "http://auth0.com/oauth/grant-type/password-realm" },
             });
+
+            E2eClientId = e2eClient.ClientId!;
+            E2eUsername = Output.CreateSecret(user.Email!);
+            E2ePassword = Output.CreateSecret(password.Result);
         }
     }
 }

@@ -57,4 +57,14 @@ public class AuthStackTests
             resources.OfType<Auth0.Client>(),
             c => InfraTesting.GetAsync(c.Name).Result == "fmis-dev-auth-e2e");
     }
+
+    [Fact]
+    public async Task Exposes_domain_spa_client_id_and_audience_outputs()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+        var stack = resources.OfType<Fmis.Infra.Auth.AuthStack>().Single();
+
+        Assert.Equal("https://dev.api.modern-fmis", await InfraTesting.GetAsync(stack.Audience));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.SpaClientId));
+    }
 }
