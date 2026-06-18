@@ -1,0 +1,17 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Pulumi" Version="3.107.1" />
+    <PackageReference Include="Pulumi.Auth0" Version="3.45.0" />
+    <PackageReference Include="Pulumi.Random" Version="4.21.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fmis.Infra.Common\Fmis.Infra.Common.csproj" />
+  </ItemGroup>
+
+</Project>
