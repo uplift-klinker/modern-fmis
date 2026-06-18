@@ -21,4 +21,8 @@
     <ProjectReference Include="..\..\auth\Fmis.Infra.Auth.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="xunit.runner.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+
 </Project>

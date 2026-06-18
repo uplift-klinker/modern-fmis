@@ -17,15 +17,22 @@ internal sealed class StackMocks : IMocks
 
 internal static class InfraTesting
 {
-    public static Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
+    public static async Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
     {
+        var previous = Environment.GetEnvironmentVariable("PULUMI_CONFIG");
         Environment.SetEnvironmentVariable(
             "PULUMI_CONFIG",
             $$"""{"fmis-auth:enableE2eUser":"{{(enableE2eUser ? "true" : "false")}}","auth0:domain":"dev.modern-fmis.auth0.com","auth0:clientId":"test-client-id","auth0:clientSecret":"test-client-secret"}""");
-
-        return Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
-            new StackMocks(),
-            new TestOptions { StackName = "dev", ProjectName = "fmis-auth", IsPreview = false });
+        try
+        {
+            return await Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
+                new StackMocks(),
+                new TestOptions { StackName = "dev", ProjectName = "fmis-auth", IsPreview = false });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PULUMI_CONFIG", previous);
+        }
     }
 
     public static Task<T> GetAsync<T>(Output<T> output)
