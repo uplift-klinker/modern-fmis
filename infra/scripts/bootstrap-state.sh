@@ -4,7 +4,7 @@ set -euo pipefail
 # Idempotently provision the Pulumi self-managed state backend (azblob).
 # Requires an authenticated `az` session (CI uses GitHub->Azure OIDC).
 ENVIRONMENT="${ENVIRONMENT:-dev}"
-LOCATION="${AZURE_LOCATION:-eastus}"
+LOCATION="${AZURE_LOCATION:-centralus}"
 RESOURCE_GROUP="${RESOURCE_GROUP:-fmis-${ENVIRONMENT}-infra}"
 STORAGE_ACCOUNT="${PULUMI_STATE_ACCOUNT:-fmis${ENVIRONMENT}tfstate}"
 CONTAINER="${PULUMI_STATE_CONTAINER:-pulumi-state}"

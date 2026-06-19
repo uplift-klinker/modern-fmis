@@ -105,6 +105,8 @@ Pulumi stacks are composed from small, single-purpose **`ComponentResource`s** (
 
 Auth0/provider credentials (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`) are supplied via **environment variables** in CI/CD and local runs — never written to committed Pulumi config files. Only non-secret stack settings (e.g. `enableE2eUser`) live in `Pulumi.<stack>.yaml`.
 
+The default Azure region for all resources is **`centralus`** (overridable via `AZURE_LOCATION`).
+
 ## Testing
 
 TDD-first ([`test-driven-development.md`](test-driven-development.md)); how tests are written (no mocks, through the bus/HTTP, seeded via commands, `InMemoryCoreTestBase`, one test project per production project + `Fmis.TestSupport`) is in [`backend-code-conventions.md`](backend-code-conventions.md). Cross-stack: a Playwright smoke E2E (incl. Auth0 login) and the Zod↔OpenAPI contract test.
