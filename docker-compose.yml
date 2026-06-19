@@ -17,8 +17,8 @@ services:
 
   backend:
     build:
-      context: ./backend
-      dockerfile: src/Fmis.Api/Dockerfile
+      context: .
+      dockerfile: backend/src/Fmis.Api/Dockerfile
     environment:
       ConnectionStrings__Fmis: "Host=db;Port=5432;Database=fmis;Username=fmis;Password=fmis"
     ports:
