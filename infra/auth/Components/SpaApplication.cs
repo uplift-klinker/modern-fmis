@@ -10,6 +10,8 @@ public sealed class SpaApplication : ComponentResource
     public SpaApplication(string name, ComponentResourceOptions? options = null)
         : base("fmis:auth:SpaApplication", name, options)
     {
+        var childOptions = new CustomResourceOptions { Parent = this };
+
         var client = new Auth0.Client(name, new Auth0.ClientArgs
         {
             Name = name,
@@ -19,7 +21,13 @@ public sealed class SpaApplication : ComponentResource
             Callbacks = { "http://localhost:5173" },
             AllowedLogoutUrls = { "http://localhost:5173" },
             WebOrigins = { "http://localhost:5173" },
-        }, new CustomResourceOptions { Parent = this });
+        }, childOptions);
+
+        new Auth0.ClientCredentials($"{name}-creds", new Auth0.ClientCredentialsArgs
+        {
+            ClientId = client.ClientId,
+            AuthenticationMethod = "none",
+        }, childOptions);
 
         ClientId = client.ClientId;
         RegisterOutputs();

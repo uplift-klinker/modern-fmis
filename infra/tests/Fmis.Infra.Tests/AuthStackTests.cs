@@ -90,4 +90,13 @@ public class AuthStackTests
         Assert.Null(await InfraTesting.GetAsync(stack.E2eClientId));
         Assert.Null(await InfraTesting.GetAsync(stack.E2eClientSecret));
     }
+
+    [Fact]
+    public async Task Declares_the_spa_as_a_public_client_with_no_token_endpoint_auth()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        var credentials = resources.OfType<Auth0.ClientCredentials>().Single();
+        Assert.Equal("none", await InfraTesting.GetAsync(credentials.AuthenticationMethod));
+    }
 }
