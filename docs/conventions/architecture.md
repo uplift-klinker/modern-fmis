@@ -101,6 +101,8 @@ Validate at the boundary (Zod on the frontend; the command bus on the backend). 
 
 Azure, provisioned by Pulumi (C#) as **separate stacks** with independent lifecycles: `auth` (Auth0 resources), `persistence` (DB, durable storage, queues — deletion-protected), `application` (compute, static-asset storage). The Pulumi **state backend** storage account is created by a CLI step in CI, not a Pulumi stack. Deletion-protection tiers (persistence vs application, with the storage-by-content classification rule) are the repository rule in [`infrastructure-tiers.md`](infrastructure-tiers.md).
 
+Pulumi stacks are composed from small, single-purpose **`ComponentResource`s** (one concern each, exposing typed outputs); the stack class is a thin composition root that wires component outputs to stack outputs — no monolithic stack constructors.
+
 ## Testing
 
 TDD-first ([`test-driven-development.md`](test-driven-development.md)); how tests are written (no mocks, through the bus/HTTP, seeded via commands, `InMemoryCoreTestBase`, one test project per production project + `Fmis.TestSupport`) is in [`backend-code-conventions.md`](backend-code-conventions.md). Cross-stack: a Playwright smoke E2E (incl. Auth0 login) and the Zod↔OpenAPI contract test.
