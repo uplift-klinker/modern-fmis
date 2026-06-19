@@ -103,6 +103,8 @@ Azure, provisioned by Pulumi (C#) as **separate stacks** with independent lifecy
 
 Pulumi stacks are composed from small, single-purpose **`ComponentResource`s** (one concern each, exposing typed outputs); the stack class is a thin composition root that wires component outputs to stack outputs — no monolithic stack constructors.
 
+Auth0/provider credentials (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`) are supplied via **environment variables** in CI/CD and local runs — never written to committed Pulumi config files. Only non-secret stack settings (e.g. `enableE2eUser`) live in `Pulumi.<stack>.yaml`.
+
 ## Testing
 
 TDD-first ([`test-driven-development.md`](test-driven-development.md)); how tests are written (no mocks, through the bus/HTTP, seeded via commands, `InMemoryCoreTestBase`, one test project per production project + `Fmis.TestSupport`) is in [`backend-code-conventions.md`](backend-code-conventions.md). Cross-stack: a Playwright smoke E2E (incl. Auth0 login) and the Zod↔OpenAPI contract test.

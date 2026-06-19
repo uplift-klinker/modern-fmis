@@ -25,10 +25,17 @@ internal static class InfraTesting
 {
     public static async Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
     {
-        var previous = Environment.GetEnvironmentVariable("PULUMI_CONFIG");
+        var previousConfig = Environment.GetEnvironmentVariable("PULUMI_CONFIG");
+        var previousDomain = Environment.GetEnvironmentVariable("AUTH0_DOMAIN");
+        var previousClientId = Environment.GetEnvironmentVariable("AUTH0_CLIENT_ID");
+        var previousClientSecret = Environment.GetEnvironmentVariable("AUTH0_CLIENT_SECRET");
+
         Environment.SetEnvironmentVariable(
             "PULUMI_CONFIG",
-            $$"""{"fmis-auth:enableE2eUser":"{{(enableE2eUser ? "true" : "false")}}","auth0:domain":"dev.modern-fmis.auth0.com","auth0:clientId":"test-client-id","auth0:clientSecret":"test-client-secret"}""");
+            $$"""{"fmis-auth:enableE2eUser":"{{(enableE2eUser ? "true" : "false")}}"}""");
+        Environment.SetEnvironmentVariable("AUTH0_DOMAIN", "dev.modern-fmis.auth0.com");
+        Environment.SetEnvironmentVariable("AUTH0_CLIENT_ID", "test-client-id");
+        Environment.SetEnvironmentVariable("AUTH0_CLIENT_SECRET", "test-client-secret");
         try
         {
             return await Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
@@ -37,7 +44,10 @@ internal static class InfraTesting
         }
         finally
         {
-            Environment.SetEnvironmentVariable("PULUMI_CONFIG", previous);
+            Environment.SetEnvironmentVariable("PULUMI_CONFIG", previousConfig);
+            Environment.SetEnvironmentVariable("AUTH0_DOMAIN", previousDomain);
+            Environment.SetEnvironmentVariable("AUTH0_CLIENT_ID", previousClientId);
+            Environment.SetEnvironmentVariable("AUTH0_CLIENT_SECRET", previousClientSecret);
         }
     }
 

@@ -17,13 +17,14 @@ public class AuthStack : Stack
     public AuthStack()
     {
         var env = Deployment.Instance.StackName;
-        var auth0Config = new Config("auth0");
 
         var spa = new SpaApplication(ResourceNames.For(env, "auth", "spa"));
         var api = new AuthApi(ResourceNames.For(env, "auth", "api"), ResourceNames.Audience(env));
         _ = new TenantConfiguration(ResourceNames.For(env, "auth", "tenant"));
 
-        Domain = Output.Create(auth0Config.Require("domain"));
+        Domain = Output.Create(
+            Environment.GetEnvironmentVariable("AUTH0_DOMAIN")
+            ?? throw new InvalidOperationException("AUTH0_DOMAIN environment variable is required."));
         SpaClientId = spa.ClientId;
         Audience = api.Audience;
 

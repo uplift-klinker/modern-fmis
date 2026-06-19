@@ -50,7 +50,7 @@ Pulumi needs programmatic access to the Auth0 Management API to create clients, 
    - **Client ID** → `AUTH0_CLIENT_ID`
    - **Client Secret** → `AUTH0_CLIENT_SECRET`
 
-These three values are what the CI workflow injects as Pulumi provider config (`auth0:domain`, `auth0:clientId`, `auth0:clientSecret`).
+These three values are what the CI workflow supplies as environment variables (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`) on each Pulumi step.
 
 ---
 
@@ -175,16 +175,14 @@ pulumi login "azblob://pulumi-state?storage_account=fmisdevtfstate"
 # From the auth project directory
 cd infra/auth
 
-# Export the passphrase (use the same value stored in GitHub)
-export PULUMI_CONFIG_PASSPHRASE=<your-passphrase>
+# Export Auth0 provider credentials and the stack passphrase
+export AUTH0_DOMAIN="<your-tenant-domain>"
+export AUTH0_CLIENT_ID="<m2m-client-id>"
+export AUTH0_CLIENT_SECRET="<m2m-client-secret>"
+export PULUMI_CONFIG_PASSPHRASE="<passphrase>"
 
 # Select the dev stack
 pulumi stack select dev
-
-# Set Auth0 provider config (only needed once per local clone; stored in Pulumi.<stack>.yaml)
-pulumi config set auth0:domain "modern-fmis-dev.us.auth0.com"
-pulumi config set auth0:clientId "<management-client-id>"
-pulumi config set --secret auth0:clientSecret "<management-client-secret>"
 
 # Preview changes
 pulumi preview

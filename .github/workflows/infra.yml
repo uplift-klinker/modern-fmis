@@ -52,20 +52,14 @@ jobs:
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
 
-      - name: Set Auth0 provider config
-        working-directory: infra/auth
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-        run: |
-          pulumi config set auth0:domain "${{ secrets.AUTH0_DOMAIN }}"
-          pulumi config set auth0:clientId "${{ secrets.AUTH0_CLIENT_ID }}"
-          pulumi config set --secret auth0:clientSecret "${{ secrets.AUTH0_CLIENT_SECRET }}"
-
       - name: Preview (pull request)
         if: github.event_name == 'pull_request'
         working-directory: infra/auth
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: pulumi preview
 
       - name: Up (merge to main)
@@ -73,4 +67,7 @@ jobs:
         working-directory: infra/auth
         env:
           PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: pulumi up --yes
