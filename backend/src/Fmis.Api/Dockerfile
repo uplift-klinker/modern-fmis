@@ -1,8 +1,8 @@
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 COPY . .
-RUN dotnet restore Fmis.slnx
-RUN dotnet publish src/Fmis.Api/Fmis.Api.csproj -c Release -o /app/publish
+RUN dotnet restore backend/src/Fmis.Api/Fmis.Api.csproj
+RUN dotnet publish backend/src/Fmis.Api/Fmis.Api.csproj -c Release -o /app/publish
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 WORKDIR /app
