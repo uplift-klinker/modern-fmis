@@ -1,0 +1,64 @@
+using System.Collections.Immutable;
+using Pulumi;
+using Pulumi.Testing;
+
+namespace Fmis.Infra.Tests;
+
+internal sealed class StackMocks : IMocks
+{
+    public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
+    {
+        var state = args.Inputs.ToBuilder();
+        state["clientId"] = $"{args.Name}_client_id";
+        state["clientSecret"] = $"{args.Name}_clientSecret";
+        state["result"] = $"{args.Name}_result";
+        return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
+    }
+
+    public Task<object> CallAsync(MockCallArgs args)
+        => Task.FromResult<object>(args.Args);
+
+    public void RegisterResourceOutputs(MockRegisterResourceOutputsRequest request) { }
+}
+
+internal static class InfraTesting
+{
+    public static async Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
+    {
+        var previousConfig = Environment.GetEnvironmentVariable("PULUMI_CONFIG");
+        var previousDomain = Environment.GetEnvironmentVariable("AUTH0_DOMAIN");
+        var previousClientId = Environment.GetEnvironmentVariable("AUTH0_CLIENT_ID");
+        var previousClientSecret = Environment.GetEnvironmentVariable("AUTH0_CLIENT_SECRET");
+
+        Environment.SetEnvironmentVariable(
+            "PULUMI_CONFIG",
+            $$"""{"fmis-auth:enableE2eUser":"{{(enableE2eUser ? "true" : "false")}}"}""");
+        Environment.SetEnvironmentVariable("AUTH0_DOMAIN", "dev.modern-fmis.auth0.com");
+        Environment.SetEnvironmentVariable("AUTH0_CLIENT_ID", "test-client-id");
+        Environment.SetEnvironmentVariable("AUTH0_CLIENT_SECRET", "test-client-secret");
+        try
+        {
+            return await Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
+                new StackMocks(),
+                new TestOptions { StackName = "dev", ProjectName = "fmis-auth", IsPreview = false });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("PULUMI_CONFIG", previousConfig);
+            Environment.SetEnvironmentVariable("AUTH0_DOMAIN", previousDomain);
+            Environment.SetEnvironmentVariable("AUTH0_CLIENT_ID", previousClientId);
+            Environment.SetEnvironmentVariable("AUTH0_CLIENT_SECRET", previousClientSecret);
+        }
+    }
+
+    public static Task<T> GetAsync<T>(Output<T> output)
+    {
+        var completion = new TaskCompletionSource<T>();
+        output.Apply(value =>
+        {
+            completion.SetResult(value);
+            return value;
+        });
+        return completion.Task;
+    }
+}

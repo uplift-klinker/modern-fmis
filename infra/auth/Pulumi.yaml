@@ -1,0 +1,3 @@
+name: fmis-auth
+runtime: dotnet
+description: Auth0 resources for modern-fmis (authentication only)

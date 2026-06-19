@@ -17,13 +17,16 @@ The `Ingestion` module/project is created when its phase starts (no empty stubs 
 One repository holds everything — app code and IaC — stack-separated at the top level so a polyglot repo stays legible and CI can target each part independently:
 
 ```
-backend/    .NET 10 solution (Fmis.slnx) — modular monolith
+Fmis.slnx   single root solution — backend + infra projects, frontend as a solution folder
+backend/    .NET 10 backend projects (modular monolith)
 frontend/   React + TypeScript (Vite, pnpm)   [from its phase]
 infra/      Pulumi (C#) — Azure, separate stacks [from its phase]
 docs/       specs, plans, conventions
 .github/workflows/   CI/CD
 docker-compose.yml   full local stack
 ```
+
+The root `Fmis.slnx` spans all .NET projects (`backend/` + `infra/`) so they are built and tested with a single `dotnet` invocation from the repo root. The `frontend/` directory appears as a non-buildable solution folder (navigation only — editors surface the config files; MSBuild ignores them). Stack directories stay unchanged; the single solution is purely an organizational layer.
 
 ## Backend architecture — modular monolith, vertical slices
 
@@ -54,18 +57,19 @@ The HTTP layer is **MVC controllers** (`[ApiController]`, attribute routing); `P
 
 ### Solution & projects
 
-`backend/Fmis.slnx`, root namespace/prefix `Fmis`:
+Root `Fmis.slnx`, root namespace/prefix `Fmis`:
 
 ```
 backend/src/   Fmis.Api · Fmis.Core · Fmis.Models   (+ Fmis.Ingestion later)
 backend/tests/ Fmis.TestSupport (no tests; shared utilities) · Fmis.Core.Tests · Fmis.Api.Tests
+infra/         Fmis.Infra.Common · Fmis.Infra.Auth · Fmis.Infra.Tests
 ```
 
 ## Tech stack (with reasoning)
 
 | Concern | Choice | Why |
 |---|---|---|
-| Runtime | .NET 10 (latest **LTS**), pinned via `backend/global.json` | Supported, reproducible; run .NET CLI from `backend/` so the pin applies |
+| Runtime | .NET 10 (latest **LTS**), pinned via root `global.json` | Supported, reproducible; run .NET CLI from the repo root so the pin applies |
 | Backend | ASP.NET Core, REST via **MVC controllers** | Conventional, familiar (attribute routing, filters) |
 | ORM / DB | EF Core (code-first migrations) + **PostgreSQL + PostGIS** (Azure-managed) | A field is a real land parcel; rate data is spatial — PostGIS pays off from the Field phase on |
 | Validation | **FluentValidation** (in the command bus) | Expressive cross-field rules; free/open-source |
@@ -96,6 +100,12 @@ Validate at the boundary (Zod on the frontend; the command bus on the backend). 
 ## Infrastructure
 
 Azure, provisioned by Pulumi (C#) as **separate stacks** with independent lifecycles: `auth` (Auth0 resources), `persistence` (DB, durable storage, queues — deletion-protected), `application` (compute, static-asset storage). The Pulumi **state backend** storage account is created by a CLI step in CI, not a Pulumi stack. Deletion-protection tiers (persistence vs application, with the storage-by-content classification rule) are the repository rule in [`infrastructure-tiers.md`](infrastructure-tiers.md).
+
+Pulumi stacks are composed from small, single-purpose **`ComponentResource`s** (one concern each, exposing typed outputs); the stack class is a thin composition root that wires component outputs to stack outputs — no monolithic stack constructors.
+
+Auth0/provider credentials (`AUTH0_DOMAIN`, `AUTH0_CLIENT_ID`, `AUTH0_CLIENT_SECRET`) are supplied via **environment variables** in CI/CD and local runs — never written to committed Pulumi config files. Only non-secret stack settings (e.g. `enableE2eUser`) live in `Pulumi.<stack>.yaml`.
+
+The default Azure region for all resources is **`centralus`** (overridable via `AZURE_LOCATION`).
 
 ## Testing
 
