@@ -19,6 +19,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\Fmis.Infra.Common\Fmis.Infra.Common.csproj" />
     <ProjectReference Include="..\..\auth\Fmis.Infra.Auth.csproj" />
+    <ProjectReference Include="..\..\persistence\Fmis.Infra.Persistence.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -1,4 +1,5 @@
 <Solution>
+  <Folder Name="/backend/" />
   <Folder Name="/backend/src/">
     <Project Path="backend/src/Fmis.Api/Fmis.Api.csproj" />
     <Project Path="backend/src/Fmis.Core/Fmis.Core.csproj" />
@@ -12,6 +13,7 @@
   <Folder Name="/infra/">
     <Project Path="infra/Fmis.Infra.Common/Fmis.Infra.Common.csproj" />
     <Project Path="infra/auth/Fmis.Infra.Auth.csproj" />
+    <Project Path="infra/persistence/Fmis.Infra.Persistence.csproj" />
     <Project Path="infra/tests/Fmis.Infra.Tests/Fmis.Infra.Tests.csproj" />
   </Folder>
   <Folder Name="/frontend/">
