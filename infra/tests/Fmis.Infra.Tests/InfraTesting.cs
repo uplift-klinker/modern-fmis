@@ -13,7 +13,10 @@ internal sealed class StackMocks : IMocks
         state["clientSecret"] = $"{args.Name}_clientSecret";
         state["result"] = $"{args.Name}_result";
         if (state.TryGetValue("serverName", out var serverName))
+        {
             state["name"] = serverName;
+            state["fullyQualifiedDomainName"] = $"{serverName}.postgres.database.azure.com";
+        }
         if (state.TryGetValue("databaseName", out var databaseName))
             state["name"] = databaseName;
         if (state.TryGetValue("configurationName", out var configurationName))

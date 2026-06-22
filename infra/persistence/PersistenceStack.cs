@@ -7,6 +7,12 @@ namespace Fmis.Infra.Persistence;
 
 public class PersistenceStack : Stack
 {
+    [Output("serverFqdn")] public Output<string> ServerFqdn { get; private set; } = null!;
+    [Output("databaseName")] public Output<string> DatabaseName { get; private set; } = null!;
+    [Output("appIdentityClientId")] public Output<string> AppIdentityClientId { get; private set; } = null!;
+    [Output("appIdentityPrincipalId")] public Output<string> AppIdentityPrincipalId { get; private set; } = null!;
+    [Output("appIdentityName")] public Output<string> AppIdentityName { get; private set; } = null!;
+
     public PersistenceStack()
     {
         var env = Deployment.Instance.StackName;
@@ -34,5 +40,11 @@ public class PersistenceStack : Stack
             "fmis-ci-deployer",
             PostgresAdminToken.Provider(),
             new InputList<Resource> { server.DeployerFirewallRule, server.EntraAdministrator });
+
+        ServerFqdn = server.Fqdn;
+        DatabaseName = server.DatabaseName;
+        AppIdentityClientId = identity.ClientId;
+        AppIdentityPrincipalId = identity.PrincipalId;
+        AppIdentityName = identity.IdentityName;
     }
 }

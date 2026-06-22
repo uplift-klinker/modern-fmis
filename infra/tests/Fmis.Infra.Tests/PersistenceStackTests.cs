@@ -80,4 +80,15 @@ public class PersistenceStackTests
         var identity = resources.OfType<AzureNative.ManagedIdentity.UserAssignedIdentity>().Single();
         Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(identity.Name));
     }
+
+    [Fact]
+    public async Task Exposes_server_database_and_identity_outputs()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+        var stack = resources.OfType<Fmis.Infra.Persistence.PersistenceStack>().Single();
+
+        Assert.Equal("fmis", await InfraTesting.GetAsync(stack.DatabaseName));
+        Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(stack.AppIdentityName));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.ServerFqdn));
+    }
 }
