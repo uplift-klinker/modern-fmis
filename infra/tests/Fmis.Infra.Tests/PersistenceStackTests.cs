@@ -43,4 +43,22 @@ public class PersistenceStackTests
             .Single(c => InfraTesting.GetAsync(c.Name).Result == "azure.extensions");
         Assert.Contains("POSTGIS", await InfraTesting.GetAsync(config.Value));
     }
+
+    [Fact]
+    public async Task Sets_the_ci_principal_as_the_entra_admin()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        var admin = resources.OfType<AzureNative.DBforPostgreSQL.Administrator>().Single();
+        Assert.Equal("00000000-0000-0000-0000-000000000001", await InfraTesting.GetAsync(admin.ObjectId));
+    }
+
+    [Fact]
+    public async Task Locks_the_server_against_deletion()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        var locks = resources.OfType<AzureNative.Authorization.ManagementLockByScope>().ToList();
+        Assert.Contains(locks, l => InfraTesting.GetAsync(l.Level).Result == "CanNotDelete");
+    }
 }

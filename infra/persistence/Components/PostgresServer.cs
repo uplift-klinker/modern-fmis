@@ -12,6 +12,7 @@ public sealed class PostgresServer : ComponentResource
         : base("fmis:persistence:PostgresServer", name, options)
     {
         var childOptions = new CustomResourceOptions { Parent = this };
+        var serverOptions = new CustomResourceOptions { Parent = this, Protect = true };
 
         var server = new AzureNative.DBforPostgreSQL.Server(name, new AzureNative.DBforPostgreSQL.ServerArgs
         {
@@ -40,7 +41,7 @@ public sealed class PostgresServer : ComponentResource
                 PublicNetworkAccess = AzureNative.DBforPostgreSQL.ServerPublicNetworkAccessState.Enabled,
             },
             CreateMode = AzureNative.DBforPostgreSQL.CreateMode.Default,
-        }, childOptions);
+        }, serverOptions);
 
         var _allowAzure = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-azure", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
         {
@@ -76,6 +77,28 @@ public sealed class PostgresServer : ComponentResource
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,
             DatabaseName = "fmis",
+        }, childOptions);
+
+        var adminObjectId = Environment.GetEnvironmentVariable("DEPLOY_PRINCIPAL_OBJECT_ID")
+            ?? throw new InvalidOperationException("DEPLOY_PRINCIPAL_OBJECT_ID environment variable is required.");
+        var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID")
+            ?? throw new InvalidOperationException("AZURE_TENANT_ID environment variable is required.");
+
+        var _admin = new AzureNative.DBforPostgreSQL.Administrator($"{name}-entra-admin", new AzureNative.DBforPostgreSQL.AdministratorArgs
+        {
+            ResourceGroupName = resourceGroupName,
+            ServerName = server.Name,
+            ObjectId = adminObjectId,
+            PrincipalName = "fmis-ci-deployer",
+            PrincipalType = AzureNative.DBforPostgreSQL.PrincipalType.ServicePrincipal,
+            TenantId = tenantId,
+        }, childOptions);
+
+        var _lock = new AzureNative.Authorization.ManagementLockByScope($"{name}-lock", new AzureNative.Authorization.ManagementLockByScopeArgs
+        {
+            Scope = server.Id,
+            LockName = $"{name}-cannotdelete",
+            Level = AzureNative.Authorization.LockLevel.CanNotDelete,
         }, childOptions);
 
         Fqdn = server.FullyQualifiedDomainName;
