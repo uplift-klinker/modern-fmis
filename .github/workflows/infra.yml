@@ -73,3 +73,30 @@ jobs:
           AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
           AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
         run: pulumi up --yes
+
+      - name: Compute persistence deploy inputs
+        run: |
+          echo "DEPLOYER_IP=$(curl -s ifconfig.me)" >> "$GITHUB_ENV"
+          echo "DEPLOY_PRINCIPAL_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)" >> "$GITHUB_ENV"
+
+      - name: Select or init the persistence dev stack
+        working-directory: infra/persistence
+        run: pulumi stack select dev || pulumi stack init dev
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Persistence preview (pull request)
+        if: github.event_name == 'pull_request'
+        working-directory: infra/persistence
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: pulumi preview
+
+      - name: Persistence up (merge to main)
+        if: github.event_name == 'push'
+        working-directory: infra/persistence
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: pulumi up --yes
