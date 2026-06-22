@@ -3,25 +3,24 @@ name: infra
 on:
   pull_request:
     branches: [main]
-    paths: ["infra/**", ".github/workflows/infra.yml"]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+      - ".github/workflows/infra-deploy.yml"
   push:
     branches: [main]
-    paths: ["infra/**", ".github/workflows/infra.yml"]
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+      - ".github/workflows/infra-deploy.yml"
 
 permissions:
   id-token: write
   contents: read
 
-env:
-  ENVIRONMENT: dev
-  PULUMI_STATE_ACCOUNT: fmisdevtfstate
-  PULUMI_STATE_CONTAINER: pulumi-state
-  RESOURCE_GROUP: fmis-dev-infra
-
 jobs:
-  infra:
+  test:
     runs-on: ubuntu-latest
-    environment: dev
     steps:
       - uses: actions/checkout@v7
 
@@ -32,71 +31,17 @@ jobs:
       - name: Build and test infra
         run: dotnet test Fmis.slnx --filter "FullyQualifiedName~Fmis.Infra" --configuration Release
 
-      - uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-
-      - name: Bootstrap Pulumi state backend
-        run: ./infra/scripts/bootstrap-state.sh
-
-      - uses: pulumi/actions@v7
-        with:
-          pulumi-version: 3.247.0
-
-      - name: Pulumi login (azblob)
-        run: pulumi login "azblob://${PULUMI_STATE_CONTAINER}?storage_account=${PULUMI_STATE_ACCOUNT}"
-
-      - name: Select or init the dev stack
-        working-directory: infra/auth
-        run: pulumi stack select dev || pulumi stack init dev
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Preview (pull request)
-        if: github.event_name == 'pull_request'
-        working-directory: infra/auth
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
-        run: pulumi preview
-
-      - name: Up (merge to main)
-        if: github.event_name == 'push'
-        working-directory: infra/auth
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
-          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
-          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
-        run: pulumi up --yes
-
-      - name: Compute persistence deploy inputs
-        run: |
-          echo "DEPLOYER_IP=$(curl -s ifconfig.me)" >> "$GITHUB_ENV"
-          echo "DEPLOY_PRINCIPAL_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)" >> "$GITHUB_ENV"
-
-      - name: Select or init the persistence dev stack
-        working-directory: infra/persistence
-        run: pulumi stack select dev || pulumi stack init dev
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-
-      - name: Persistence preview (pull request)
-        if: github.event_name == 'pull_request'
-        working-directory: infra/persistence
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: pulumi preview
-
-      - name: Persistence up (merge to main)
-        if: github.event_name == 'push'
-        working-directory: infra/persistence
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-        run: pulumi up --yes
+  dev:
+    needs: [test]
+    uses: ./.github/workflows/infra-deploy.yml
+    with:
+      environment: dev
+      deploy: ${{ github.event_name == 'push' }}
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+      AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+      AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+      AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}

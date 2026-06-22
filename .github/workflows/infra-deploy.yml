@@ -1,0 +1,106 @@
+name: infra-deploy
+
+on:
+  workflow_call:
+    inputs:
+      environment:
+        description: Target environment name (e.g. dev). Drives the Pulumi stack name and the fmis-<env>-* resource naming.
+        required: true
+        type: string
+      deploy:
+        description: When true, apply changes with 'pulumi up'. When false (default), run 'pulumi preview' only.
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      AZURE_CLIENT_ID:
+        required: true
+      AZURE_TENANT_ID:
+        required: true
+      AZURE_SUBSCRIPTION_ID:
+        required: true
+      PULUMI_CONFIG_PASSPHRASE:
+        required: true
+      AUTH0_DOMAIN:
+        required: true
+      AUTH0_CLIENT_ID:
+        required: true
+      AUTH0_CLIENT_SECRET:
+        required: true
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  gate:
+    if: ${{ inputs.deploy }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    steps:
+      - run: echo "Deploy to ${{ inputs.environment }} approved."
+
+  deploy:
+    needs: [gate]
+    if: ${{ !cancelled() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ inputs.environment }}
+      PULUMI_STATE_ACCOUNT: fmis${{ inputs.environment }}tfstate
+      PULUMI_STATE_CONTAINER: pulumi-state
+      RESOURCE_GROUP: fmis-${{ inputs.environment }}-infra
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          global-json-file: global.json
+
+      - uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Bootstrap Pulumi state backend
+        run: ./infra/scripts/bootstrap-state.sh
+
+      - uses: pulumi/actions@v7
+        with:
+          pulumi-version: 3.247.0
+
+      - name: Pulumi login (azblob)
+        run: pulumi login "azblob://${PULUMI_STATE_CONTAINER}?storage_account=${PULUMI_STATE_ACCOUNT}"
+
+      - name: Select or init the auth stack
+        working-directory: infra/auth
+        run: pulumi stack select ${{ inputs.environment }} || pulumi stack init ${{ inputs.environment }}
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Auth ${{ inputs.deploy && 'up' || 'preview' }}
+        working-directory: infra/auth
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+          AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+          AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+        run: pulumi ${{ inputs.deploy && 'up --yes' || 'preview' }}
+
+      - name: Compute persistence deploy inputs
+        run: |
+          echo "DEPLOYER_IP=$(curl -s ifconfig.me)" >> "$GITHUB_ENV"
+          echo "DEPLOY_PRINCIPAL_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)" >> "$GITHUB_ENV"
+
+      - name: Select or init the persistence stack
+        working-directory: infra/persistence
+        run: pulumi stack select ${{ inputs.environment }} || pulumi stack init ${{ inputs.environment }}
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+
+      - name: Persistence ${{ inputs.deploy && 'up' || 'preview' }}
+        working-directory: infra/persistence
+        env:
+          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+          AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+        run: pulumi ${{ inputs.deploy && 'up --yes' || 'preview' }}
