@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { AppConfigSchema } from '@/shared/config/appConfig';
+import { AppConfigSchema } from '@/shared/config/app-config';
 
 describe('AppConfigSchema', () => {
   it('parses a valid config', () => {

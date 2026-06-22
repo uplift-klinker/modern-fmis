@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { authReducer, setAccessToken } from '@/shared/auth/authSlice';
+import { authReducer, setAccessToken } from '@/shared/auth/auth-slice';
 
 describe('authSlice', () => {
   it('starts with no token', () => {

@@ -1,6 +1,6 @@
-import { api } from '@/shared/api/baseApi';
-import { API_TAGS } from '@/shared/api/apiTags';
-import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
+import { api } from '@/shared/api/base-api';
+import { API_TAGS } from '@/shared/api/api-tags';
+import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/client-schemas';
 
 export const clientsApi = api.injectEndpoints({
   endpoints: (build) => ({

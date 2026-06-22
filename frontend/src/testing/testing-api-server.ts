@@ -1,10 +1,10 @@
 import { setupServer } from 'msw/node';
 import { http, HttpResponse, delay, type HttpHandler } from 'msw';
-import { ModelFactory, type AppConfigOverrides } from '@/testing/ModelFactory';
-import { TEST_CONFIG } from '@/testing/testConfig';
-import type { AppConfig } from '@/shared/config/appConfig';
-import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
-import type { RequestCapture } from '@/testing/requestCapture';
+import { ModelFactory, type AppConfigOverrides } from '@/testing/model-factory';
+import { TEST_CONFIG } from '@/testing/test-config';
+import type { AppConfig } from '@/shared/config/app-config';
+import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/client-schemas';
+import type { RequestCapture } from '@/testing/request-capture';
 
 export interface SetupEndpointOptions<TBody = never> {
   delayMs?: number;

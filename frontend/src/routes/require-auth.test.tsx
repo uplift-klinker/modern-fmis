@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { RequireAuth } from '@/routes/RequireAuth';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { RequireAuth } from '@/routes/require-auth';
 
 function Protected() {
   return (

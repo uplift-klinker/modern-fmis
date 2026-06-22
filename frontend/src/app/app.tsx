@@ -1,8 +1,8 @@
 import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { appTheme } from '@/shared/theme/theme';
-import { ConfigProvider } from '@/shared/config/ConfigContext';
-import { ConfiguredApp } from '@/app/ConfiguredApp';
+import { ConfigProvider } from '@/shared/config/config';
+import { ConfiguredApp } from '@/app/configured-app';
 
 export function App() {
   return (

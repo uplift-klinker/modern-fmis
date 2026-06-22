@@ -5,7 +5,7 @@ import {
   type FetchArgs,
   type FetchBaseQueryError,
 } from '@reduxjs/toolkit/query/react';
-import { API_TAGS } from '@/shared/api/apiTags';
+import { API_TAGS } from '@/shared/api/api-tags';
 import type { RootState } from '@/app/store';
 
 const dynamicBaseQuery: BaseQueryFn<string | FetchArgs, unknown, FetchBaseQueryError> = (args, apiCtx, extra) => {

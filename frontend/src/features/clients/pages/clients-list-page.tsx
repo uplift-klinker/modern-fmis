@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Box, Button } from '@mui/material';
 import { Outlet, useNavigate } from 'react-router-dom';
-import { ClientList } from '@/features/clients/components/ClientList';
-import { CreateClientDialog } from '@/features/clients/dialogs/CreateClientDialog';
+import { ClientList } from '@/features/clients/components/client-list';
+import { CreateClientDialog } from '@/features/clients/dialogs/create-client-dialog';
 
 export function ClientsListPage() {
   const navigate = useNavigate();

@@ -1,7 +1,7 @@
 import { configureStore } from '@reduxjs/toolkit';
-import { api } from '@/shared/api/baseApi';
-import { authReducer } from '@/shared/auth/authSlice';
-import type { AppConfig } from '@/shared/config/appConfig';
+import { api } from '@/shared/api/base-api';
+import { authReducer } from '@/shared/auth/auth-slice';
+import type { AppConfig } from '@/shared/config/app-config';
 
 export function createStore(config: AppConfig) {
   return configureStore({

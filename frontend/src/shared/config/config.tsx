@@ -4,7 +4,7 @@ import {
   type ReactNode,
 } from 'react';
 import { CircularProgress } from '@mui/material';
-import { loadAppConfig, type AppConfig } from '@/shared/config/appConfig';
+import { loadAppConfig, type AppConfig } from '@/shared/config/app-config';
 import { ConfigContext } from '@/shared/config/config-context';
 
 export function ConfigProvider({

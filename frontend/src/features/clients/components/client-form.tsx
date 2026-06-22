@@ -1,6 +1,6 @@
 import { useForm } from '@tanstack/react-form';
 import { Alert, Button, Stack, TextField } from '@mui/material';
-import { CreateClientRequestSchema, type CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
+import { CreateClientRequestSchema, type CreateClientRequest } from '@/features/clients/schemas/client-schemas';
 
 interface ClientFormValues {
   name: string;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { ClientResponseSchema, CreateClientRequestSchema, ClientListSchema } from '@/features/clients/schemas/ClientSchemas';
+import { ClientResponseSchema, CreateClientRequestSchema, ClientListSchema } from '@/features/clients/schemas/client-schemas';
 
 describe('client schemas', () => {
   it('parses a client response', () => {

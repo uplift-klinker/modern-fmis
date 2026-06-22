@@ -1,9 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { TestingApiServer } from '@/testing/TestingApiServer';
-import { ModelFactory } from '@/testing/ModelFactory';
-import { ClientDetail } from '@/features/clients/components/ClientDetail';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { TestingApiServer } from '@/testing/testing-api-server';
+import { ModelFactory } from '@/testing/model-factory';
+import { ClientDetail } from '@/features/clients/components/client-detail';
 
 describe('ClientDetail', () => {
   it('shows the client name, email, and phone', async () => {

@@ -1,8 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { ClientForm } from '@/features/clients/components/ClientForm';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { ClientForm } from '@/features/clients/components/client-form';
 
 describe('ClientForm', () => {
   it('submits the entered client when valid', async () => {

@@ -1,12 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { TestingApiServer } from '@/testing/TestingApiServer';
-import { RequestCapture } from '@/testing/requestCapture';
-import { ModelFactory } from '@/testing/ModelFactory';
-import { CreateClientDialog } from '@/features/clients/dialogs/CreateClientDialog';
-import type { CreateClientRequest } from '@/features/clients/schemas/ClientSchemas';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { TestingApiServer } from '@/testing/testing-api-server';
+import { RequestCapture } from '@/testing/request-capture';
+import { ModelFactory } from '@/testing/model-factory';
+import { CreateClientDialog } from '@/features/clients/dialogs/create-client-dialog';
+import type { CreateClientRequest } from '@/features/clients/schemas/client-schemas';
 
 describe('CreateClientDialog', () => {
   it('posts the entered client and reports the created result', async () => {

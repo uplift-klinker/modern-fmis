@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { z } from 'zod';
-import { createListSchema } from '@/shared/schemas/listSchema';
+import { createListSchema } from '@/shared/schemas/list-schema';
 
 describe('createListSchema', () => {
   it('builds a list schema with items and a total count', () => {

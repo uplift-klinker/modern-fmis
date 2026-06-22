@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { createListSchema } from '@/shared/schemas/listSchema';
+import { createListSchema } from '@/shared/schemas/list-schema';
 
 export const ClientResponseSchema = z.object({
   id: z.string(),

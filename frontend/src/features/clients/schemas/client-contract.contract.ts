@@ -3,7 +3,7 @@ import {
   ClientResponseSchema,
   ClientListSchema,
   CreateClientRequestObjectSchema,
-} from '@/features/clients/schemas/ClientSchemas';
+} from '@/features/clients/schemas/client-schemas';
 
 const apiUrl = 'http://localhost:8080';
 

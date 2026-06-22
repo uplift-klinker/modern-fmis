@@ -2,8 +2,8 @@ import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Route, Routes } from 'react-router-dom';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { AppLayout } from '@/app/AppLayout';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { AppLayout } from '@/app/app-layout';
 
 describe('AppLayout', () => {
   it('renders the routed content and logs out the signed-in user', async () => {

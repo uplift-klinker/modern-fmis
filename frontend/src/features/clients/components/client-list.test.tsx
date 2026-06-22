@@ -1,10 +1,10 @@
 import { describe, it, expect, vi } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { TestingApiServer } from '@/testing/TestingApiServer';
-import { ModelFactory } from '@/testing/ModelFactory';
-import { ClientList } from '@/features/clients/components/ClientList';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { TestingApiServer } from '@/testing/testing-api-server';
+import { ModelFactory } from '@/testing/model-factory';
+import { ClientList } from '@/features/clients/components/client-list';
 
 describe('ClientList', () => {
   it('shows each client name with contact sub-text', async () => {

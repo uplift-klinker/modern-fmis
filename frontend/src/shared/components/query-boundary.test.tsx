@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ThemedShell } from '@/testing/ThemedShell';
-import { QueryBoundary } from '@/shared/components/QueryBoundary';
+import { ThemedShell } from '@/testing/themed-shell';
+import { QueryBoundary } from '@/shared/components/query-boundary';
 
 describe('QueryBoundary', () => {
   it('renders a loading indicator while loading', () => {

@@ -1,5 +1,5 @@
 import { createContext, useContext } from 'react';
-import type { AppConfig } from '@/shared/config/appConfig';
+import type { AppConfig } from '@/shared/config/app-config';
 
 export const ConfigContext = createContext<AppConfig | null>(null);
 

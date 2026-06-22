@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ConfigProvider } from '@/shared/config/ConfigContext';
+import { ConfigProvider } from '@/shared/config/config';
 import { useConfig } from '@/shared/config/config-context';
-import { TestingApiServer } from '@/testing/TestingApiServer';
-import { ModelFactory } from '@/testing/ModelFactory';
-import { renderWithProviders } from '@/testing/renderWithProviders';
-import { ThemedShell } from '@/testing/ThemedShell';
+import { TestingApiServer } from '@/testing/testing-api-server';
+import { ModelFactory } from '@/testing/model-factory';
+import { renderWithProviders } from '@/testing/render-with-providers';
+import { ThemedShell } from '@/testing/themed-shell';
 
 function ShowApiUrl() {
   return <div>api:{useConfig().apiBaseUrl}</div>;
