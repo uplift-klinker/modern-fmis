@@ -8,6 +8,7 @@ public sealed class PostgresServer : ComponentResource
     public Output<string> Fqdn { get; }
     public Output<string> DatabaseName { get; }
     public Resource DeployerFirewallRule { get; }
+    public Resource EntraAdministrator { get; }
 
     public PostgresServer(string name, Input<string> resourceGroupName, string location, ComponentResourceOptions? options = null)
         : base("fmis:persistence:PostgresServer", name, options)
@@ -85,7 +86,7 @@ public sealed class PostgresServer : ComponentResource
         var tenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID")
             ?? throw new InvalidOperationException("AZURE_TENANT_ID environment variable is required.");
 
-        var _admin = new AzureNative.DBforPostgreSQL.Administrator($"{name}-entra-admin", new AzureNative.DBforPostgreSQL.AdministratorArgs
+        EntraAdministrator = new AzureNative.DBforPostgreSQL.Administrator($"{name}-entra-admin", new AzureNative.DBforPostgreSQL.AdministratorArgs
         {
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,

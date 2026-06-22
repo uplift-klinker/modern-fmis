@@ -33,6 +33,6 @@ public class PersistenceStack : Stack
             server.DatabaseName,
             "fmis-ci-deployer",
             PostgresAdminToken.Provider(),
-            new InputList<Resource> { server.DeployerFirewallRule });
+            new InputList<Resource> { server.DeployerFirewallRule, server.EntraAdministrator });
     }
 }
