@@ -28,6 +28,11 @@ public class PersistenceStack : Stack
         var identity = new DatabaseIdentity(
             ResourceNames.For(env, "app", "identity"),
             resourceGroup.Name,
-            location);
+            location,
+            server.Fqdn,
+            server.DatabaseName,
+            "fmis-ci-deployer",
+            PostgresAdminToken.Provider(),
+            new InputList<Resource> { server.DeployerFirewallRule });
     }
 }

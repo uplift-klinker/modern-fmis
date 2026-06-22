@@ -7,6 +7,7 @@ public sealed class PostgresServer : ComponentResource
 {
     public Output<string> Fqdn { get; }
     public Output<string> DatabaseName { get; }
+    public Resource DeployerFirewallRule { get; }
 
     public PostgresServer(string name, Input<string> resourceGroupName, string location, ComponentResourceOptions? options = null)
         : base("fmis:persistence:PostgresServer", name, options)
@@ -54,7 +55,7 @@ public sealed class PostgresServer : ComponentResource
 
         var deployerIp = Environment.GetEnvironmentVariable("DEPLOYER_IP")
             ?? throw new InvalidOperationException("DEPLOYER_IP environment variable is required.");
-        var _allowDeployer = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-deployer", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
+        DeployerFirewallRule = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-deployer", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
         {
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,

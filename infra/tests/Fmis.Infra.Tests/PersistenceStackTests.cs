@@ -5,6 +5,16 @@ namespace Fmis.Infra.Tests;
 public class PersistenceStackTests
 {
     [Fact]
+    public async Task Provisions_the_entra_principal_and_grants()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        Assert.NotEmpty(resources.OfType<Pulumi.Command.Local.Command>());
+        Assert.NotEmpty(resources.OfType<Pulumi.PostgreSql.Grant>());
+    }
+
+
+    [Fact]
     public async Task Creates_a_burstable_pg16_entra_only_server()
     {
         var resources = await InfraTesting.RunPersistenceStackAsync();
