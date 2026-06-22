@@ -10,7 +10,7 @@ public sealed class PostgresServer : ComponentResource
     public Resource DeployerFirewallRule { get; }
     public Resource EntraAdministrator { get; }
 
-    public PostgresServer(string name, Input<string> resourceGroupName, string location, ComponentResourceOptions? options = null)
+    public PostgresServer(string name, Input<string> resourceGroupName, string location, string entraAdminLogin, ComponentResourceOptions? options = null)
         : base("fmis:persistence:PostgresServer", name, options)
     {
         var childOptions = new CustomResourceOptions { Parent = this };
@@ -45,7 +45,7 @@ public sealed class PostgresServer : ComponentResource
             CreateMode = AzureNative.DBforPostgreSQL.CreateMode.Default,
         }, serverOptions);
 
-        var _allowAzure = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-azure", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
+        _ = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-azure", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
         {
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,
@@ -65,7 +65,7 @@ public sealed class PostgresServer : ComponentResource
             EndIpAddress = deployerIp,
         }, childOptions);
 
-        var _postgis = new AzureNative.DBforPostgreSQL.Configuration($"{name}-azure-extensions", new AzureNative.DBforPostgreSQL.ConfigurationArgs
+        _ = new AzureNative.DBforPostgreSQL.Configuration($"{name}-azure-extensions", new AzureNative.DBforPostgreSQL.ConfigurationArgs
         {
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,
@@ -74,7 +74,7 @@ public sealed class PostgresServer : ComponentResource
             Source = "user-override",
         }, childOptions);
 
-        var _database = new AzureNative.DBforPostgreSQL.Database($"{name}-database", new AzureNative.DBforPostgreSQL.DatabaseArgs
+        var database = new AzureNative.DBforPostgreSQL.Database($"{name}-database", new AzureNative.DBforPostgreSQL.DatabaseArgs
         {
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,
@@ -91,12 +91,12 @@ public sealed class PostgresServer : ComponentResource
             ResourceGroupName = resourceGroupName,
             ServerName = server.Name,
             ObjectId = adminObjectId,
-            PrincipalName = "fmis-ci-deployer",
+            PrincipalName = entraAdminLogin,
             PrincipalType = AzureNative.DBforPostgreSQL.PrincipalType.ServicePrincipal,
             TenantId = tenantId,
         }, childOptions);
 
-        var _lock = new AzureNative.Authorization.ManagementLockByScope($"{name}-lock", new AzureNative.Authorization.ManagementLockByScopeArgs
+        _ = new AzureNative.Authorization.ManagementLockByScope($"{name}-lock", new AzureNative.Authorization.ManagementLockByScopeArgs
         {
             Scope = server.Id,
             LockName = $"{name}-cannotdelete",
@@ -104,7 +104,7 @@ public sealed class PostgresServer : ComponentResource
         }, childOptions);
 
         Fqdn = server.FullyQualifiedDomainName;
-        DatabaseName = Output.Create("fmis");
+        DatabaseName = database.Name;
         RegisterOutputs();
     }
 }

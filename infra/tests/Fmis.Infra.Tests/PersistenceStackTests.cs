@@ -10,9 +10,9 @@ public class PersistenceStackTests
         var resources = await InfraTesting.RunPersistenceStackAsync();
 
         Assert.NotEmpty(resources.OfType<Pulumi.Command.Local.Command>());
-        Assert.NotEmpty(resources.OfType<Pulumi.PostgreSql.Grant>());
+        var grant = resources.OfType<Pulumi.PostgreSql.Grant>().Single();
+        Assert.Equal("fmis", await InfraTesting.GetAsync(grant.Database));
     }
-
 
     [Fact]
     public async Task Creates_a_burstable_pg16_entra_only_server()

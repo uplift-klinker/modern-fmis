@@ -17,6 +17,7 @@ public class PersistenceStack : Stack
     {
         var env = Deployment.Instance.StackName;
         const string location = "centralus";
+        const string entraAdminLogin = "fmis-ci-deployer";
 
         var resourceGroup = new AzureNative.Resources.ResourceGroup(
             ResourceNames.For(env, "persistence", "rg"),
@@ -29,7 +30,8 @@ public class PersistenceStack : Stack
         var server = new PostgresServer(
             ResourceNames.For(env, "persistence", "postgres"),
             resourceGroup.Name,
-            location);
+            location,
+            entraAdminLogin);
 
         var identity = new DatabaseIdentity(
             ResourceNames.For(env, "app", "identity"),
@@ -37,7 +39,7 @@ public class PersistenceStack : Stack
             location,
             server.Fqdn,
             server.DatabaseName,
-            "fmis-ci-deployer",
+            entraAdminLogin,
             PostgresAdminToken.Provider(),
             new InputList<Resource> { server.DeployerFirewallRule, server.EntraAdministrator });
 

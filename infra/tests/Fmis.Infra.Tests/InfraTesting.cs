@@ -4,34 +4,6 @@ using Pulumi.Testing;
 
 namespace Fmis.Infra.Tests;
 
-internal sealed class StackMocks : IMocks
-{
-    public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
-    {
-        var state = args.Inputs.ToBuilder();
-        state["clientId"] = $"{args.Name}_client_id";
-        state["clientSecret"] = $"{args.Name}_clientSecret";
-        state["result"] = $"{args.Name}_result";
-        if (state.TryGetValue("serverName", out var serverName))
-        {
-            state["name"] = serverName;
-            state["fullyQualifiedDomainName"] = $"{serverName}.postgres.database.azure.com";
-        }
-        if (state.TryGetValue("databaseName", out var databaseName))
-            state["name"] = databaseName;
-        if (state.TryGetValue("configurationName", out var configurationName))
-            state["name"] = configurationName;
-        if (state.TryGetValue("resourceName", out var resourceName))
-            state["name"] = resourceName;
-        return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
-    }
-
-    public Task<object> CallAsync(MockCallArgs args)
-        => Task.FromResult<object>(args.Args);
-
-    public void RegisterResourceOutputs(MockRegisterResourceOutputsRequest request) { }
-}
-
 internal static class InfraTesting
 {
     public static async Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
@@ -50,7 +22,7 @@ internal static class InfraTesting
         try
         {
             return await Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
-                new StackMocks(),
+                new AuthStackMocks(),
                 new TestOptions { StackName = "dev", ProjectName = "fmis-auth", IsPreview = false });
         }
         finally
