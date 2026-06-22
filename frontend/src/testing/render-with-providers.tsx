@@ -2,7 +2,7 @@ import type { ReactElement } from 'react';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
-import { ConfigProvider } from '@/shared/config/config';
+import { ConfigProvider } from '@/shared/config/config-provider';
 import { AuthContext, type AuthState } from '@/shared/auth/auth-context';
 import { createStore } from '@/app/store';
 import { TEST_CONFIG } from '@/testing/test-config';

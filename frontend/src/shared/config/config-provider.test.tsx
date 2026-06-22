@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ConfigProvider } from '@/shared/config/config';
+import { ConfigProvider } from '@/shared/config/config-provider';
 import { useConfig } from '@/shared/config/config-context';
 import { TestingApiServer } from '@/testing/testing-api-server';
 import { ModelFactory } from '@/testing/model-factory';
