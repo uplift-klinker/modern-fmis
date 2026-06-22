@@ -42,6 +42,42 @@ public sealed class PostgresServer : ComponentResource
             CreateMode = AzureNative.DBforPostgreSQL.CreateMode.Default,
         }, childOptions);
 
+        var _allowAzure = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-azure", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
+        {
+            ResourceGroupName = resourceGroupName,
+            ServerName = server.Name,
+            FirewallRuleName = "AllowAllAzureServices",
+            StartIpAddress = "0.0.0.0",
+            EndIpAddress = "0.0.0.0",
+        }, childOptions);
+
+        var deployerIp = Environment.GetEnvironmentVariable("DEPLOYER_IP")
+            ?? throw new InvalidOperationException("DEPLOYER_IP environment variable is required.");
+        var _allowDeployer = new AzureNative.DBforPostgreSQL.FirewallRule($"{name}-allow-deployer", new AzureNative.DBforPostgreSQL.FirewallRuleArgs
+        {
+            ResourceGroupName = resourceGroupName,
+            ServerName = server.Name,
+            FirewallRuleName = "AllowDeployer",
+            StartIpAddress = deployerIp,
+            EndIpAddress = deployerIp,
+        }, childOptions);
+
+        var _postgis = new AzureNative.DBforPostgreSQL.Configuration($"{name}-azure-extensions", new AzureNative.DBforPostgreSQL.ConfigurationArgs
+        {
+            ResourceGroupName = resourceGroupName,
+            ServerName = server.Name,
+            ConfigurationName = "azure.extensions",
+            Value = "POSTGIS",
+            Source = "user-override",
+        }, childOptions);
+
+        var _database = new AzureNative.DBforPostgreSQL.Database($"{name}-database", new AzureNative.DBforPostgreSQL.DatabaseArgs
+        {
+            ResourceGroupName = resourceGroupName,
+            ServerName = server.Name,
+            DatabaseName = "fmis",
+        }, childOptions);
+
         Fqdn = server.FullyQualifiedDomainName;
         DatabaseName = Output.Create("fmis");
         RegisterOutputs();

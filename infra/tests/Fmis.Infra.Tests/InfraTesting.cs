@@ -14,6 +14,10 @@ internal sealed class StackMocks : IMocks
         state["result"] = $"{args.Name}_result";
         if (state.TryGetValue("serverName", out var serverName))
             state["name"] = serverName;
+        if (state.TryGetValue("databaseName", out var databaseName))
+            state["name"] = databaseName;
+        if (state.TryGetValue("configurationName", out var configurationName))
+            state["name"] = configurationName;
         return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
     }
 
