@@ -24,5 +24,10 @@ public class PersistenceStack : Stack
             ResourceNames.For(env, "persistence", "postgres"),
             resourceGroup.Name,
             location);
+
+        var identity = new DatabaseIdentity(
+            ResourceNames.For(env, "app", "identity"),
+            resourceGroup.Name,
+            location);
     }
 }

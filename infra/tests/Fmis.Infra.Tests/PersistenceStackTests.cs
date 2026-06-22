@@ -61,4 +61,13 @@ public class PersistenceStackTests
         var locks = resources.OfType<AzureNative.Authorization.ManagementLockByScope>().ToList();
         Assert.Contains(locks, l => InfraTesting.GetAsync(l.Level).Result == "CanNotDelete");
     }
+
+    [Fact]
+    public async Task Creates_the_app_managed_identity()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        var identity = resources.OfType<AzureNative.ManagedIdentity.UserAssignedIdentity>().Single();
+        Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(identity.Name));
+    }
 }
