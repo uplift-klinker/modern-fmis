@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { Auth0Provider, type AppState } from '@auth0/auth0-react';
 import { Provider } from 'react-redux';
 import { RouterProvider } from 'react-router-dom';
-import { useConfig } from '@/shared/config/ConfigContext';
+import { useConfig } from '@/shared/config/config-context';
 import { AuthProvider } from '@/shared/auth/auth';
 import { createStore } from '@/app/store';
 import { router } from '@/app/router';

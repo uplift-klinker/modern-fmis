@@ -1,14 +1,11 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useState,
   type ReactNode,
 } from 'react';
 import { CircularProgress } from '@mui/material';
 import { loadAppConfig, type AppConfig } from '@/shared/config/appConfig';
-
-const ConfigContext = createContext<AppConfig | null>(null);
+import { ConfigContext } from '@/shared/config/config-context';
 
 export function ConfigProvider({
   config,
@@ -38,12 +35,4 @@ export function ConfigProvider({
   return (
     <ConfigContext.Provider value={loaded}>{children}</ConfigContext.Provider>
   );
-}
-
-export function useConfig(): AppConfig {
-  const config = useContext(ConfigContext);
-  if (!config) {
-    throw new Error('useConfig must be used within a ConfigProvider');
-  }
-  return config;
 }

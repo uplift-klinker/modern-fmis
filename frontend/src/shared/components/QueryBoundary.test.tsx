@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
-import { ThemedShell } from '@/testing/renderWithProviders';
+import { ThemedShell } from '@/testing/ThemedShell';
 import { QueryBoundary } from '@/shared/components/QueryBoundary';
 
 describe('QueryBoundary', () => {

@@ -1,15 +1,13 @@
-import type { ReactElement, ReactNode } from 'react';
+import type { ReactElement } from 'react';
 import { render, type RenderOptions, type RenderResult } from '@testing-library/react';
 import { Provider } from 'react-redux';
 import { MemoryRouter } from 'react-router-dom';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { appTheme } from '@/shared/theme/theme';
 import { ConfigProvider } from '@/shared/config/ConfigContext';
-import { AuthContext, type AuthState } from '@/shared/auth/auth';
+import { AuthContext, type AuthState } from '@/shared/auth/auth-context';
 import { createStore } from '@/app/store';
 import { TEST_CONFIG } from '@/testing/testConfig';
 import type { AppConfig } from '@/shared/config/appConfig';
+import { ThemedShell } from '@/testing/ThemedShell';
 
 const DEFAULT_AUTHENTICATED_STATE: AuthState = {
   isAuthenticated: true,
@@ -19,15 +17,6 @@ const DEFAULT_AUTHENTICATED_STATE: AuthState = {
   logout: () => {},
   userEmail: null,
 };
-
-export function ThemedShell({ children }: { children: ReactNode }) {
-  return (
-    <ThemeProvider theme={appTheme}>
-      <CssBaseline />
-      {children}
-    </ThemeProvider>
-  );
-}
 
 export interface RenderWithProvidersOptions extends Omit<RenderOptions, 'wrapper'> {
   config?: AppConfig;

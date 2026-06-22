@@ -1,27 +1,9 @@
-import { createContext, useContext, useEffect, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { useAuth0 } from '@auth0/auth0-react';
 import { useDispatch } from 'react-redux';
 import { setAccessToken } from '@/shared/auth/authSlice';
 import type { AppDispatch } from '@/app/store';
-
-export interface AuthState {
-  isAuthenticated: boolean;
-  isLoading: boolean;
-  hasError: boolean;
-  login: (returnTo: string) => void;
-  logout: () => void;
-  userEmail: string | null;
-}
-
-export const AuthContext = createContext<AuthState | null>(null);
-
-export function useAuth(): AuthState {
-  const auth = useContext(AuthContext);
-  if (!auth) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return auth;
-}
+import { AuthContext, type AuthState } from '@/shared/auth/auth-context';
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth0 = useAuth0();

@@ -1,6 +1,6 @@
 import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material';
 import { Outlet } from 'react-router-dom';
-import { useAuth } from '@/shared/auth/auth';
+import { useAuth } from '@/shared/auth/auth-context';
 
 export function AppLayout() {
   const auth = useAuth();

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom';
 import { CircularProgress } from '@mui/material';
-import { useAuth } from '@/shared/auth/auth';
+import { useAuth } from '@/shared/auth/auth-context';
 
 export function RequireAuth() {
   const auth = useAuth();

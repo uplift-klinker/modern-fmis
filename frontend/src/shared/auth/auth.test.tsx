@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import { render } from '@testing-library/react';
-import { useAuth } from '@/shared/auth/auth';
+import { useAuth } from '@/shared/auth/auth-context';
 
 function ReadAuth() {
   useAuth();
