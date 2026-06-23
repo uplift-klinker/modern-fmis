@@ -33,17 +33,9 @@ permissions:
   contents: read
 
 jobs:
-  gate:
-    if: ${{ inputs.deploy }}
+  deploy:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
-    steps:
-      - run: echo "Deploy to ${{ inputs.environment }} approved."
-
-  deploy:
-    needs: [gate]
-    if: ${{ !cancelled() && (needs.gate.result == 'success' || needs.gate.result == 'skipped') }}
-    runs-on: ubuntu-latest
     env:
       ENVIRONMENT: ${{ inputs.environment }}
       PULUMI_STATE_ACCOUNT: fmis${{ inputs.environment }}tfstate
