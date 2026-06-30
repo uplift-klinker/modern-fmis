@@ -17,6 +17,7 @@ public static class ApiServiceCollectionExtensions
         services.AddApiErrorHandling();
         services.AddApiDocumentation();
         services.AddApiAuthentication(configuration);
+        services.AddApiCors(configuration);
         return services;
     }
 
@@ -49,6 +50,17 @@ public static class ApiServiceCollectionExtensions
                 options.Audience = configuration["Auth0:Audience"];
             });
         services.AddAuthorization();
+        return services;
+    }
+
+    public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration)
+    {
+        var origin = configuration["Cors:AllowedOrigin"];
+        services.AddCors(options => options.AddPolicy("Spa", policy =>
+        {
+            if (!string.IsNullOrWhiteSpace(origin))
+                policy.WithOrigins(origin).AllowAnyHeader().AllowAnyMethod();
+        }));
         return services;
     }
 }
