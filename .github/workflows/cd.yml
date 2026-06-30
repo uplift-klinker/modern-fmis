@@ -1,0 +1,38 @@
+name: Main CD
+
+on:
+  workflow_run:
+    workflows: ["Main CI"]
+    types: [completed]
+    branches: [main]
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  infra:
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    uses: ./.github/workflows/infra-deploy.yml
+    with:
+      environment: dev
+      deploy: true
+    secrets:
+      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+      AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
+      AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
+      AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+
+  apps:
+    needs: [infra]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy apps into infra (placeholder)
+        run: |
+          echo "App deploy lands in Phase 3b-2 (application stack):"
+          echo "  - build + push the backend container image"
+          echo "  - publish the frontend static site"
+          echo "  - emit the runtime config.json from auth + persistence stack outputs"

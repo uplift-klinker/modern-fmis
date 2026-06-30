@@ -3,6 +3,9 @@
 ##
 ## Get latest from `dotnet new gitignore`
 
+# Git worktrees (isolated workspaces)
+.worktrees/
+
 # dotenv files
 .env
 .envrc

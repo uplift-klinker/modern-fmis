@@ -4,23 +4,6 @@ using Pulumi.Testing;
 
 namespace Fmis.Infra.Tests;
 
-internal sealed class StackMocks : IMocks
-{
-    public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
-    {
-        var state = args.Inputs.ToBuilder();
-        state["clientId"] = $"{args.Name}_client_id";
-        state["clientSecret"] = $"{args.Name}_clientSecret";
-        state["result"] = $"{args.Name}_result";
-        return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
-    }
-
-    public Task<object> CallAsync(MockCallArgs args)
-        => Task.FromResult<object>(args.Args);
-
-    public void RegisterResourceOutputs(MockRegisterResourceOutputsRequest request) { }
-}
-
 internal static class InfraTesting
 {
     public static async Task<ImmutableArray<Resource>> RunAuthStackAsync(bool enableE2eUser)
@@ -39,7 +22,7 @@ internal static class InfraTesting
         try
         {
             return await Deployment.TestAsync<Fmis.Infra.Auth.AuthStack>(
-                new StackMocks(),
+                new AuthStackMocks(),
                 new TestOptions { StackName = "dev", ProjectName = "fmis-auth", IsPreview = false });
         }
         finally
@@ -48,6 +31,32 @@ internal static class InfraTesting
             Environment.SetEnvironmentVariable("AUTH0_DOMAIN", previousDomain);
             Environment.SetEnvironmentVariable("AUTH0_CLIENT_ID", previousClientId);
             Environment.SetEnvironmentVariable("AUTH0_CLIENT_SECRET", previousClientSecret);
+        }
+    }
+
+    public static async Task<ImmutableArray<Resource>> RunPersistenceStackAsync()
+    {
+        var previousDeployerIp = Environment.GetEnvironmentVariable("DEPLOYER_IP");
+        var previousAdminObjectId = Environment.GetEnvironmentVariable("DEPLOY_PRINCIPAL_OBJECT_ID");
+        var previousTenantId = Environment.GetEnvironmentVariable("AZURE_TENANT_ID");
+        var previousTokenProvider = Fmis.Infra.Persistence.PostgresAdminToken.Provider;
+
+        Environment.SetEnvironmentVariable("DEPLOYER_IP", "203.0.113.10");
+        Environment.SetEnvironmentVariable("DEPLOY_PRINCIPAL_OBJECT_ID", "00000000-0000-0000-0000-000000000001");
+        Environment.SetEnvironmentVariable("AZURE_TENANT_ID", "00000000-0000-0000-0000-0000000000aa");
+        Fmis.Infra.Persistence.PostgresAdminToken.Provider = () => Output.CreateSecret("test-token");
+        try
+        {
+            return await Deployment.TestAsync<Fmis.Infra.Persistence.PersistenceStack>(
+                new StackMocks(),
+                new TestOptions { StackName = "dev", ProjectName = "fmis-persistence", IsPreview = false });
+        }
+        finally
+        {
+            Environment.SetEnvironmentVariable("DEPLOYER_IP", previousDeployerIp);
+            Environment.SetEnvironmentVariable("DEPLOY_PRINCIPAL_OBJECT_ID", previousAdminObjectId);
+            Environment.SetEnvironmentVariable("AZURE_TENANT_ID", previousTenantId);
+            Fmis.Infra.Persistence.PostgresAdminToken.Provider = previousTokenProvider;
         }
     }
 

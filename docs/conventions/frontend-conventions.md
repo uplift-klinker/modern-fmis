@@ -11,7 +11,7 @@
 
 ## Path aliases
 
-`@/` → `src/` (configured in `tsconfig` `paths` + Vite `resolve.alias`). Imports are depth-independent — `@/shared/api/baseApi`, `@/features/clients/schemas/ClientSchemas`. **Test support is always imported via `@/testing/…`** so a test-only dependency is obvious at a glance (and never imported by production code).
+`@/` → `src/` (configured in `tsconfig` `paths` + Vite `resolve.alias`). Imports are depth-independent — `@/shared/api/base-api`, `@/features/clients/schemas/client-schemas`. **Test support is always imported via `@/testing/…`** so a test-only dependency is obvious at a glance (and never imported by production code).
 
 ## Structure: feature-sliced production, centralized testing
 
@@ -28,10 +28,11 @@ src/
   testing/    ALL test support (renderWithProviders, TestingApiServer, ModelFactory, RequestCapture, TEST_CONFIG)
 ```
 
-Tests are co-located with their unit (`pages/ClientsListPage.test.tsx`). Testing code is the one exception to feature-slicing — it's centralized in `src/testing/` because stubbing happens only at the API boundary.
+Tests are co-located with their unit (`pages/clients-list-page.test.tsx`). Testing code is the one exception to feature-slicing — it's centralized in `src/testing/` because stubbing happens only at the API boundary.
 
 ## Naming
 
+- **Files are kebab-case** — every file under `src/` (`client-detail-page.tsx`, `base-api.ts`, `auth-provider.tsx`, `model-factory.ts`), tests and contract files included (`client-list.test.tsx`, `client-contract.contract.ts`). Only the **filename** is kebab; **exports keep their idiomatic casing** (components and types PascalCase, hooks `useX`, constants `UPPER_SNAKE_CASE`). A React provider lives in `<feature>-provider.tsx` with its context + hook in `<feature>-context.ts` (e.g. `auth-provider.tsx` / `auth-context.ts`), and a test mirrors the file it covers (`auth-context.test.tsx` tests `auth-context.ts`). Tool-config files at the `frontend/` root keep their tool-mandated names (`vite.config.ts`, `eslint.config.js`, `tsconfig*.json`).
 - **Zod schemas are PascalCase** (`ClientResponseSchema`, `CreateClientRequestSchema`, `AppConfigSchema`). Inferred types are PascalCase too (`ClientResponse`).
 - **No parse wrappers.** Don't write `parseX(value)` that just calls `Schema.parse`. Call `Schema.parse(...)` / `Schema.safeParse(...)` directly at the call site. Functions that do real work (e.g. `loadAppConfig`, which fetches *then* parses) are fine.
 - **Module-level hard constants are `UPPER_SNAKE_CASE`** (`TEST_CONFIG`, `DEFAULT_AUTHENTICATED_STATE`, `API_TAGS`) to signal they are fixed.
@@ -54,7 +55,7 @@ The build is immutable. Runtime settings (`apiBaseUrl`, Auth0 `domain`/`clientId
 
 ## Auth
 
-- Auth0 is wrapped behind our own **`useAuth()` seam** (one file: `AuthContext` + `useAuth` + `AuthProvider`). Production uses Auth0; tests inject an `AuthContext` value (no module mocking).
+- Auth0 is wrapped behind our own **`useAuth()` seam** — the `AuthContext` + `useAuth` hook in `auth-context.ts`, the `AuthProvider` in `auth-provider.tsx` (split so the provider file exports only a component, for fast-refresh). Production uses Auth0; tests inject an `AuthContext` value (no module mocking).
 - **`AuthProvider` sits *inside* the Redux `Provider`** so it can dispatch. It reads Auth0, **dispatches the access token (and refreshes) into the `auth` slice**, and provides the `useAuth` context. The api reads the current token from state — never a stale one.
 - Provider order: **`<ThemeProvider theme={appTheme}>` + `<CssBaseline>` (outermost — the base of the stack)** → `ConfigProvider` → `ConfiguredApp` (`useConfig` → `createStore(config)`) → `<Provider store>` → `<Auth0Provider>` → `<AuthProvider>` → `<RouterProvider>`. ThemeProvider sits at the base (the theme is static, independent of runtime config) so the config-loading spinner and error fallback are themed too.
 - Routing: React Router; protected routes behind a `<RequireAuth>` guard; `/unauthorized` is the only public route. The guard captures the requested URL as `appState.returnTo` and `onRedirectCallback` restores it — **deep-linking must work** (a link to `/clients/:id` returns there after login, not to a generic landing).

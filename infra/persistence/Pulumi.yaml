@@ -1,0 +1,3 @@
+name: fmis-persistence
+runtime: dotnet
+description: PostgreSQL persistence tier + the app's database managed identity
