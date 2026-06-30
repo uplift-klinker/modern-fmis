@@ -73,4 +73,14 @@ public class ApplicationStackTests
         Assert.Contains("\"apiBaseUrl\"", json);
         Assert.Contains("\"audience\"", json);
     }
+
+    [Fact]
+    public async Task Exposes_backend_and_frontend_urls()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+        var stack = resources.OfType<Fmis.Infra.Application.ApplicationStack>().Single();
+
+        Assert.NotNull(await InfraTesting.GetAsync(stack.BackendUrl));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.FrontendUrl));
+    }
 }

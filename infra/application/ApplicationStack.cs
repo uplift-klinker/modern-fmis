@@ -7,6 +7,9 @@ namespace Fmis.Infra.Application;
 
 public class ApplicationStack : Stack
 {
+    [Output("backendUrl")] public Output<string> BackendUrl { get; private set; }
+    [Output("frontendUrl")] public Output<string> FrontendUrl { get; private set; }
+
     public ApplicationStack()
     {
         var env = Deployment.Instance.StackName;
@@ -76,5 +79,8 @@ public class ApplicationStack : Stack
             authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
             spaClientId: auth.GetOutput("spaClientId").Apply(v => v!.ToString()!),
             audience: auth.GetOutput("audience").Apply(v => v!.ToString()!));
+
+        BackendUrl = backend.Url;
+        FrontendUrl = frontendSite.Url;
     }
 }
