@@ -66,6 +66,7 @@ public class ApplicationStack : Stack
             authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
             audience: auth.GetOutput("audience").Apply(v => v!.ToString()!),
             frontendUrl: Output.Create(""),
-            registryId: registry.Registry.Id);
+            registryId: registry.Registry.Id,
+            options: new ComponentResourceOptions { DependsOn = { image } });
     }
 }
