@@ -25,6 +25,13 @@ public class ApplicationStack : Stack
 
         var registry = new ContainerRegistry($"fmis{env}acr", resourceGroup.Name, location);
 
+        var registryCredentials = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(
+            new AzureNative.ContainerRegistry.ListRegistryCredentialsInvokeArgs
+            {
+                ResourceGroupName = resourceGroup.Name,
+                RegistryName = registry.Name,
+            });
+
         var imageTag = Output.Format($"{registry.LoginServer}/fmis-backend:latest");
 
         var image = new Pulumi.DockerBuild.Image($"fmis{env}acr-backend", new Pulumi.DockerBuild.ImageArgs
@@ -38,6 +45,8 @@ public class ApplicationStack : Stack
                 new Pulumi.DockerBuild.Inputs.RegistryArgs
                 {
                     Address = registry.LoginServer,
+                    Username = registryCredentials.Apply(c => c.Username!),
+                    Password = registryCredentials.Apply(c => c.Passwords![0].Value!),
                 }
             },
         }, new CustomResourceOptions { DependsOn = { registry.Registry } });

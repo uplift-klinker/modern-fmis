@@ -46,7 +46,20 @@ internal class StackMocks : IMocks
     }
 
     public Task<object> CallAsync(MockCallArgs args)
-        => Task.FromResult<object>(args.Args);
+    {
+        if (args.Token == "azure-native:containerregistry:listRegistryCredentials")
+        {
+            return Task.FromResult<object>(ImmutableDictionary<string, object>.Empty
+                .Add("username", "acrAdminUser")
+                .Add("passwords", new[]
+                {
+                    ImmutableDictionary<string, object>.Empty
+                        .Add("name", "password")
+                        .Add("value", "acrAdminPassword"),
+                }));
+        }
+        return Task.FromResult<object>(args.Args);
+    }
 
     public void RegisterResourceOutputs(MockRegisterResourceOutputsRequest request) { }
 
