@@ -42,6 +42,8 @@ public class ApplicationStack : Stack
         var auth = new StackReference("auth", new StackReferenceArgs { Name = $"fmis-auth/{env}" });
         var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
 
+        var frontendSite = new FrontendSite($"fmis{env}web", resourceGroup.Name, location);
+
         var persistenceRg = $"fmis-{env}-persistence-rg";
         var clientConfig = AzureNative.Authorization.GetClientConfig.Invoke();
 
@@ -65,8 +67,14 @@ public class ApplicationStack : Stack
             identityName: persistence.GetOutput("appIdentityName").Apply(v => v!.ToString()!),
             authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
             audience: auth.GetOutput("audience").Apply(v => v!.ToString()!),
-            frontendUrl: Output.Create(""),
+            frontendUrl: frontendSite.Url,
             registryId: registry.Registry.Id,
             options: new ComponentResourceOptions { DependsOn = { image } });
+
+        frontendSite.WriteConfig(
+            backendUrl: backend.Url,
+            authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
+            spaClientId: auth.GetOutput("spaClientId").Apply(v => v!.ToString()!),
+            audience: auth.GetOutput("audience").Apply(v => v!.ToString()!));
     }
 }

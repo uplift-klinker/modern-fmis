@@ -1,4 +1,5 @@
 using AzureNative = Pulumi.AzureNative;
+using Fmis.Infra.Application.Components;
 
 namespace Fmis.Infra.Tests;
 
@@ -50,5 +51,26 @@ public class ApplicationStackTests
         Assert.Equal("https://fmis-dev.us.auth0.com/", envVars["Auth0__Authority"]);
         Assert.Equal("https://dev.api.modern-fmis", envVars["Auth0__Audience"]);
         Assert.Equal("00000000-0000-0000-0000-000000000001", envVars["AZURE_CLIENT_ID"]);
+    }
+
+    [Fact]
+    public async Task Hosts_a_static_website_storage_account()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        Assert.NotEmpty(resources.OfType<AzureNative.Storage.StorageAccount>());
+        Assert.NotEmpty(resources.OfType<AzureNative.Storage.StorageAccountStaticWebsite>());
+    }
+
+    [Fact]
+    public async Task Writes_a_config_json_blob_with_the_spa_settings()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        Assert.NotEmpty(resources.OfType<AzureNative.Storage.Blob>());
+        var site = resources.OfType<FrontendSite>().Single();
+        var json = await InfraTesting.GetAsync(site.ConfigJson);
+        Assert.Contains("\"apiBaseUrl\"", json);
+        Assert.Contains("\"audience\"", json);
     }
 }
