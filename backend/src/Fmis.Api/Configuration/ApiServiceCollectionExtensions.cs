@@ -9,8 +9,10 @@ public static class ApiServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddFmisCore(configuration.GetConnectionString("Fmis")
-            ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
+        services.AddFmisCore(new Fmis.Core.FmisDatabaseOptions(
+            configuration.GetConnectionString("Fmis") ?? throw new InvalidOperationException("Missing connection string 'Fmis'."),
+            configuration.GetValue("Database:UseEntraAuth", false),
+            configuration["AZURE_CLIENT_ID"]));
         services.AddApiControllers();
         services.AddApiErrorHandling();
         services.AddApiDocumentation();
