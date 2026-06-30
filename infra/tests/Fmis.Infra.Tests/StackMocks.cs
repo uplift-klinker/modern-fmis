@@ -26,6 +26,7 @@ internal class StackMocks : IMocks
                 };
             var refState = args.Inputs.ToBuilder();
             refState["outputs"] = outputs;
+            refState["secretOutputNames"] = ImmutableArray<string>.Empty;
             return Task.FromResult<(string?, object)>(($"{args.Name}_id", refState.ToImmutable()));
         }
 
