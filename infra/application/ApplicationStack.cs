@@ -22,6 +22,23 @@ public class ApplicationStack : Stack
 
         var registry = new ContainerRegistry($"fmis{env}acr", resourceGroup.Name, location);
 
+        var imageTag = Output.Format($"{registry.LoginServer}/fmis-backend:latest");
+
+        var image = new Pulumi.DockerBuild.Image($"fmis{env}acr-backend", new Pulumi.DockerBuild.ImageArgs
+        {
+            Context = new Pulumi.DockerBuild.Inputs.BuildContextArgs { Location = "../.." },
+            Dockerfile = new Pulumi.DockerBuild.Inputs.DockerfileArgs { Location = "../../backend/src/Fmis.Api/Dockerfile" },
+            Tags = new InputList<string> { imageTag },
+            Push = true,
+            Registries = new[]
+            {
+                new Pulumi.DockerBuild.Inputs.RegistryArgs
+                {
+                    Address = registry.LoginServer,
+                }
+            },
+        }, new CustomResourceOptions { DependsOn = { registry.Registry } });
+
         var auth = new StackReference("auth", new StackReferenceArgs { Name = $"fmis-auth/{env}" });
         var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
 
@@ -38,7 +55,7 @@ public class ApplicationStack : Stack
             $"fmis-{env}-backend",
             resourceGroup.Name,
             location,
-            imageRef: "mcr.microsoft.com/azuredocs/aci-helloworld:latest",
+            imageRef: imageTag,
             acrLoginServer: registry.LoginServer,
             identityResourceId: identityResourceId,
             identityClientId: persistence.GetOutput("appIdentityClientId").Apply(v => v!.ToString()!),

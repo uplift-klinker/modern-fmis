@@ -5,6 +5,18 @@ namespace Fmis.Infra.Tests;
 public class ApplicationStackTests
 {
     [Fact]
+    public async Task Builds_and_references_the_backend_image_from_the_registry()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        Assert.NotEmpty(resources.OfType<Pulumi.DockerBuild.Image>());
+        var app = resources.OfType<AzureNative.App.ContainerApp>().Single();
+        var image = await InfraTesting.GetAsync(app.Template.Apply(t => t!.Containers![0].Image!));
+        Assert.Contains("fmis-backend", image);
+    }
+
+
+    [Fact]
     public async Task Creates_a_basic_container_registry()
     {
         var resources = await InfraTesting.RunApplicationStackAsync();
