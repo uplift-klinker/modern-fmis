@@ -60,6 +60,13 @@ internal static class InfraTesting
         }
     }
 
+    public static async Task<ImmutableArray<Resource>> RunApplicationStackAsync()
+    {
+        return await Deployment.TestAsync<Fmis.Infra.Application.ApplicationStack>(
+            new StackMocks(),
+            new TestOptions { StackName = "dev", ProjectName = "fmis-application", IsPreview = false });
+    }
+
     public static Task<T> GetAsync<T>(Output<T> output)
     {
         var completion = new TaskCompletionSource<T>();

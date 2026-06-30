@@ -7,6 +7,28 @@ internal class StackMocks : IMocks
 {
     public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
     {
+        if (args.Type == "pulumi:pulumi:StackReference")
+        {
+            var outputs = args.Name.Contains("auth")
+                ? new Dictionary<string, object>
+                {
+                    ["domain"] = "fmis-dev.us.auth0.com",
+                    ["spaClientId"] = "spa-client-id",
+                    ["audience"] = "https://dev.api.modern-fmis",
+                }
+                : new Dictionary<string, object>
+                {
+                    ["serverFqdn"] = "fmis-dev-persistence-postgres.postgres.database.azure.com",
+                    ["databaseName"] = "fmis",
+                    ["appIdentityClientId"] = "00000000-0000-0000-0000-000000000001",
+                    ["appIdentityPrincipalId"] = "00000000-0000-0000-0000-000000000002",
+                    ["appIdentityName"] = "fmis-dev-app-identity",
+                };
+            var refState = args.Inputs.ToBuilder();
+            refState["outputs"] = outputs;
+            return Task.FromResult<(string?, object)>(($"{args.Name}_id", refState.ToImmutable()));
+        }
+
         var state = args.Inputs.ToBuilder();
         foreach (var key in new[] { "resourceName", "configurationName", "databaseName", "serverName" })
         {
