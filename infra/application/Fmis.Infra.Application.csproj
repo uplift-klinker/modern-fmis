@@ -1,0 +1,18 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Pulumi" Version="3.107.3" />
+    <PackageReference Include="Pulumi.AzureNative" Version="3.19.0" />
+    <PackageReference Include="Pulumi.DockerBuild" Version="0.0.20" />
+    <PackageReference Include="Pulumi.SyncedFolder" Version="0.12.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Fmis.Infra.Common\Fmis.Infra.Common.csproj" />
+  </ItemGroup>
+
+</Project>
