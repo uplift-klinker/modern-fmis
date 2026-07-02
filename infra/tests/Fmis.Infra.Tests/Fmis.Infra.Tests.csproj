@@ -21,6 +21,7 @@
     <ProjectReference Include="..\..\auth\Fmis.Infra.Auth.csproj" />
     <ProjectReference Include="..\..\persistence\Fmis.Infra.Persistence.csproj" />
     <ProjectReference Include="..\..\application\Fmis.Infra.Application.csproj" />
+    <ProjectReference Include="..\..\identity\Fmis.Infra.Identity.csproj" />
   </ItemGroup>
 
   <ItemGroup>
