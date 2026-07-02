@@ -91,4 +91,16 @@ public class PersistenceStackTests
         Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(stack.AppIdentityName));
         Assert.NotNull(await InfraTesting.GetAsync(stack.ServerFqdn));
     }
+
+    [Fact]
+    public async Task Creates_a_deletion_protected_container_registry()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        var registry = resources.OfType<AzureNative.ContainerRegistry.Registry>().Single();
+        Assert.Equal("Basic", await InfraTesting.GetAsync(registry.Sku.Apply(s => s.Name)));
+        Assert.Contains(resources.OfType<AzureNative.Authorization.ManagementLockByScope>(),
+            l => InfraTesting.GetAsync(l.Level).Result == "CanNotDelete"
+                && InfraTesting.GetAsync(l.Name).Result.Contains("acr"));
+    }
 }

@@ -31,7 +31,7 @@ internal class StackMocks : IMocks
         }
 
         var state = args.Inputs.ToBuilder();
-        foreach (var key in new[] { "resourceName", "configurationName", "databaseName", "serverName" })
+        foreach (var key in new[] { "resourceName", "configurationName", "databaseName", "serverName", "lockName", "registryName" })
         {
             if (state.TryGetValue(key, out var value))
             {

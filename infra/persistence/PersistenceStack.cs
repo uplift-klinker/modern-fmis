@@ -12,6 +12,9 @@ public class PersistenceStack : Stack
     [Output("appIdentityClientId")] public Output<string> AppIdentityClientId { get; private set; } = null!;
     [Output("appIdentityPrincipalId")] public Output<string> AppIdentityPrincipalId { get; private set; } = null!;
     [Output("appIdentityName")] public Output<string> AppIdentityName { get; private set; } = null!;
+    [Output("acrLoginServer")] public Output<string> AcrLoginServer { get; private set; } = null!;
+    [Output("acrId")] public Output<string> AcrId { get; private set; } = null!;
+    [Output("acrName")] public Output<string> AcrName { get; private set; } = null!;
 
     public PersistenceStack()
     {
@@ -43,10 +46,15 @@ public class PersistenceStack : Stack
             PostgresAdminToken.Provider(),
             new InputList<Resource> { server.DeployerFirewallRule, server.EntraAdministrator });
 
+        var registry = new ContainerRegistry($"fmis{env}acr", resourceGroup.Name, location);
+
         ServerFqdn = server.Fqdn;
         DatabaseName = server.DatabaseName;
         AppIdentityClientId = identity.ClientId;
         AppIdentityPrincipalId = identity.PrincipalId;
         AppIdentityName = identity.IdentityName;
+        AcrLoginServer = registry.LoginServer;
+        AcrId = registry.RegistryId;
+        AcrName = Output.Create($"fmis{env}acr");
     }
 }
