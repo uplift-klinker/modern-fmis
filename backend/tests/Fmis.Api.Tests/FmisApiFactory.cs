@@ -11,9 +11,20 @@ namespace Fmis.Api.Tests;
 public class FmisApiFactory : WebApplicationFactory<Program>
 {
     private readonly string databaseName = $"fmis-api-tests-{Guid.NewGuid()}";
+    private readonly Dictionary<string, string?> overrides = new();
+
+    public FmisApiFactory WithConfig(string key, string value)
+    {
+        overrides[key] = value;
+        return this;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
+        foreach (var setting in overrides)
+        {
+            builder.UseSetting(setting.Key, setting.Value);
+        }
         builder.ConfigureTestServices(services =>
         {
             RemoveEntityFrameworkServices(services);

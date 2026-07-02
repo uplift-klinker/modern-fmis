@@ -1,0 +1,3 @@
+name: fmis-application
+runtime: dotnet
+description: Backend Container App + frontend static site + runtime config.json

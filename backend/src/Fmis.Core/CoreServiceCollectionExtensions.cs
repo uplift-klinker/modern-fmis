@@ -7,9 +7,10 @@ namespace Fmis.Core;
 
 public static class CoreServiceCollectionExtensions
 {
-    public static IServiceCollection AddFmisCore(this IServiceCollection services, string connectionString)
+    public static IServiceCollection AddFmisCore(this IServiceCollection services, FmisDatabaseOptions options)
     {
-        services.AddDbContext<FmisDbContext>(options => options.UseNpgsql(connectionString));
+        var dataSource = FmisDataSource.Build(options);
+        services.AddDbContext<FmisDbContext>(dbOptions => dbOptions.UseNpgsql(dataSource));
         return services.AddFmisCoreHandlers();
     }
 

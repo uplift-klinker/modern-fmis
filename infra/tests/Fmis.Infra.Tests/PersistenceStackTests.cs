@@ -5,16 +5,6 @@ namespace Fmis.Infra.Tests;
 public class PersistenceStackTests
 {
     [Fact]
-    public async Task Provisions_the_entra_principal_and_grants()
-    {
-        var resources = await InfraTesting.RunPersistenceStackAsync();
-
-        Assert.NotEmpty(resources.OfType<Pulumi.Command.Local.Command>());
-        var grant = resources.OfType<Pulumi.PostgreSql.Grant>().Single();
-        Assert.Equal("fmis", await InfraTesting.GetAsync(grant.Database));
-    }
-
-    [Fact]
     public async Task Creates_a_burstable_pg16_entra_only_server()
     {
         var resources = await InfraTesting.RunPersistenceStackAsync();
@@ -73,22 +63,24 @@ public class PersistenceStackTests
     }
 
     [Fact]
-    public async Task Creates_the_app_managed_identity()
-    {
-        var resources = await InfraTesting.RunPersistenceStackAsync();
-
-        var identity = resources.OfType<AzureNative.ManagedIdentity.UserAssignedIdentity>().Single();
-        Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(identity.Name));
-    }
-
-    [Fact]
-    public async Task Exposes_server_database_and_identity_outputs()
+    public async Task Exposes_server_and_database_outputs()
     {
         var resources = await InfraTesting.RunPersistenceStackAsync();
         var stack = resources.OfType<Fmis.Infra.Persistence.PersistenceStack>().Single();
 
         Assert.Equal("fmis", await InfraTesting.GetAsync(stack.DatabaseName));
-        Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(stack.AppIdentityName));
         Assert.NotNull(await InfraTesting.GetAsync(stack.ServerFqdn));
+    }
+
+    [Fact]
+    public async Task Creates_a_deletion_protected_container_registry()
+    {
+        var resources = await InfraTesting.RunPersistenceStackAsync();
+
+        var registry = resources.OfType<AzureNative.ContainerRegistry.Registry>().Single();
+        Assert.Equal("Basic", await InfraTesting.GetAsync(registry.Sku.Apply(s => s.Name)));
+        Assert.Contains(resources.OfType<AzureNative.Authorization.ManagementLockByScope>(),
+            l => InfraTesting.GetAsync(l.Level).Result == "CanNotDelete"
+                && InfraTesting.GetAsync(l.Name).Result.Contains("acr"));
     }
 }

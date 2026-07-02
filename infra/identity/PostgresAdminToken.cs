@@ -2,14 +2,13 @@ using Azure.Core;
 using Azure.Identity;
 using Pulumi;
 
-namespace Fmis.Infra.Persistence;
+namespace Fmis.Infra.Identity;
 
 public static class PostgresAdminToken
 {
     public static Func<Output<string>> Provider { get; set; } = FromAzureIdentity;
 
-    private static Output<string> FromAzureIdentity() =>
-        Output.CreateSecret(Output.Create(FetchAsync()));
+    private static Output<string> FromAzureIdentity() => Output.CreateSecret(Output.Create(FetchAsync()));
 
     private static async Task<string> FetchAsync()
     {

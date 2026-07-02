@@ -9,12 +9,15 @@ public static class ApiServiceCollectionExtensions
 {
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddFmisCore(configuration.GetConnectionString("Fmis")
-            ?? throw new InvalidOperationException("Missing connection string 'Fmis'."));
+        services.AddFmisCore(new Fmis.Core.FmisDatabaseOptions(
+            configuration.GetConnectionString("Fmis") ?? throw new InvalidOperationException("Missing connection string 'Fmis'."),
+            configuration.GetValue("Database:UseEntraAuth", false),
+            configuration["AZURE_CLIENT_ID"]));
         services.AddApiControllers();
         services.AddApiErrorHandling();
         services.AddApiDocumentation();
         services.AddApiAuthentication(configuration);
+        services.AddApiCors(configuration);
         return services;
     }
 
@@ -47,6 +50,17 @@ public static class ApiServiceCollectionExtensions
                 options.Audience = configuration["Auth0:Audience"];
             });
         services.AddAuthorization();
+        return services;
+    }
+
+    public static IServiceCollection AddApiCors(this IServiceCollection services, IConfiguration configuration)
+    {
+        var origin = configuration["Cors:AllowedOrigin"];
+        services.AddCors(options => options.AddPolicy("Spa", policy =>
+        {
+            if (!string.IsNullOrWhiteSpace(origin))
+                policy.WithOrigins(origin).AllowAnyHeader().AllowAnyMethod();
+        }));
         return services;
     }
 }

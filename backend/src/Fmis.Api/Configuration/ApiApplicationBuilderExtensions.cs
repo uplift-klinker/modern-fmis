@@ -10,6 +10,7 @@ public static class ApiApplicationBuilderExtensions
         app.UseExceptionHandler();
         app.UseStatusCodePages();
         app.MapOpenApi();
+        app.UseCors("Spa");
         app.UseAuthentication();
         app.UseAuthorization();
         return app;

@@ -13,6 +13,8 @@
   <Folder Name="/infra/">
     <Project Path="infra/Fmis.Infra.Common/Fmis.Infra.Common.csproj" />
     <Project Path="infra/auth/Fmis.Infra.Auth.csproj" />
+    <Project Path="infra/application/Fmis.Infra.Application.csproj" />
+    <Project Path="infra/identity/Fmis.Infra.Identity.csproj" />
     <Project Path="infra/persistence/Fmis.Infra.Persistence.csproj" />
     <Project Path="infra/tests/Fmis.Infra.Tests/Fmis.Infra.Tests.csproj" />
   </Folder>

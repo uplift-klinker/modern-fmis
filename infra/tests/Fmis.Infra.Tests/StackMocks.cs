@@ -7,8 +7,35 @@ internal class StackMocks : IMocks
 {
     public Task<(string? id, object state)> NewResourceAsync(MockResourceArgs args)
     {
+        if (args.Type == "pulumi:pulumi:StackReference")
+        {
+            Dictionary<string, object> outputs;
+            if (args.Name.Contains("auth"))
+                outputs = new() { ["domain"] = "fmis-dev.us.auth0.com", ["spaClientId"] = "spa-client-id", ["audience"] = "https://dev.api.modern-fmis" };
+            else if (args.Name.Contains("identity"))
+                outputs = new()
+                {
+                    ["appIdentityClientId"] = "00000000-0000-0000-0000-000000000001",
+                    ["appIdentityPrincipalId"] = "00000000-0000-0000-0000-000000000002",
+                    ["appIdentityName"] = "fmis-dev-app-identity",
+                    ["appIdentityResourceId"] = "/subscriptions/sub/resourceGroups/fmis-dev-identity-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fmis-dev-app-identity",
+                };
+            else
+                outputs = new()
+                {
+                    ["serverFqdn"] = "fmis-dev-persistence-postgres.postgres.database.azure.com",
+                    ["databaseName"] = "fmis",
+                    ["acrLoginServer"] = "fmisdevacr.azurecr.io",
+                    ["acrId"] = "/subscriptions/sub/resourceGroups/fmis-dev-persistence-rg/providers/Microsoft.ContainerRegistry/registries/fmisdevacr",
+                };
+            var refState = args.Inputs.ToBuilder();
+            refState["outputs"] = outputs;
+            refState["secretOutputNames"] = ImmutableArray<string>.Empty;
+            return Task.FromResult<(string?, object)>(($"{args.Name}_id", refState.ToImmutable()));
+        }
+
         var state = args.Inputs.ToBuilder();
-        foreach (var key in new[] { "resourceName", "configurationName", "databaseName", "serverName" })
+        foreach (var key in new[] { "resourceName", "configurationName", "databaseName", "serverName", "lockName", "registryName" })
         {
             if (state.TryGetValue(key, out var value))
             {
@@ -23,7 +50,20 @@ internal class StackMocks : IMocks
     }
 
     public Task<object> CallAsync(MockCallArgs args)
-        => Task.FromResult<object>(args.Args);
+    {
+        if (args.Token == "azure-native:containerregistry:listRegistryCredentials")
+        {
+            return Task.FromResult<object>(ImmutableDictionary<string, object>.Empty
+                .Add("username", "acrAdminUser")
+                .Add("passwords", new[]
+                {
+                    ImmutableDictionary<string, object>.Empty
+                        .Add("name", "password")
+                        .Add("value", "acrAdminPassword"),
+                }));
+        }
+        return Task.FromResult<object>(args.Args);
+    }
 
     public void RegisterResourceOutputs(MockRegisterResourceOutputsRequest request) { }
 
