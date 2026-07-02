@@ -34,4 +34,14 @@ public class IdentityStackTests
         var grant = resources.OfType<Pulumi.PostgreSql.Grant>().Single();
         Assert.Equal("fmis", await InfraTesting.GetAsync(grant.Database));
     }
+
+    [Fact]
+    public async Task Exposes_the_identity_outputs()
+    {
+        var resources = await InfraTesting.RunIdentityStackAsync();
+        var stack = resources.OfType<Fmis.Infra.Identity.IdentityStack>().Single();
+
+        Assert.Equal("fmis-dev-app-identity", await InfraTesting.GetAsync(stack.AppIdentityName));
+        Assert.NotNull(await InfraTesting.GetAsync(stack.AppIdentityResourceId));
+    }
 }

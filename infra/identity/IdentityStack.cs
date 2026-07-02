@@ -7,6 +7,11 @@ namespace Fmis.Infra.Identity;
 
 public class IdentityStack : Stack
 {
+    [Output("appIdentityClientId")] public Output<string> AppIdentityClientId { get; private set; }
+    [Output("appIdentityPrincipalId")] public Output<string> AppIdentityPrincipalId { get; private set; }
+    [Output("appIdentityName")] public Output<string> AppIdentityName { get; private set; }
+    [Output("appIdentityResourceId")] public Output<string> AppIdentityResourceId { get; private set; }
+
     public IdentityStack()
     {
         var env = Deployment.Instance.StackName;
@@ -36,5 +41,10 @@ public class IdentityStack : Stack
             appIdentity.Name,
             "fmis-ci-deployer",
             PostgresAdminToken.Provider());
+
+        AppIdentityClientId = appIdentity.ClientId;
+        AppIdentityPrincipalId = appIdentity.PrincipalId;
+        AppIdentityName = appIdentity.Name;
+        AppIdentityResourceId = appIdentity.ResourceId;
     }
 }
