@@ -28,5 +28,13 @@ public class IdentityStack : Stack
             ?? throw new InvalidOperationException("DEPLOY_PRINCIPAL_OBJECT_ID environment variable is required.");
         var acrId = persistence.GetOutput("acrId").Apply(v => v!.ToString()!);
         var registryAccess = new RegistryAccess(ResourceNames.For(env, "identity", "registry-access"), acrId, appIdentity.PrincipalId, deployerPrincipalId);
+
+        var databaseAccess = new DatabaseAccess(
+            ResourceNames.For(env, "identity", "db-access"),
+            persistence.GetOutput("serverFqdn").Apply(v => v!.ToString()!),
+            persistence.GetOutput("databaseName").Apply(v => v!.ToString()!),
+            appIdentity.Name,
+            "fmis-ci-deployer",
+            PostgresAdminToken.Provider());
     }
 }

@@ -24,4 +24,14 @@ public class IdentityStackTests
         Assert.Contains(roleDefs, d => d.Contains("7f951dda-4ed3-4680-a7ca-43fe172d538d"));
         Assert.Contains(roleDefs, d => d.Contains("8311e382-0749-4cb8-b61a-304f252e45ec"));
     }
+
+    [Fact]
+    public async Task Provisions_the_entra_principal_and_grants()
+    {
+        var resources = await InfraTesting.RunIdentityStackAsync();
+
+        Assert.NotEmpty(resources.OfType<Pulumi.Command.Local.Command>());
+        var grant = resources.OfType<Pulumi.PostgreSql.Grant>().Single();
+        Assert.Equal("fmis", await InfraTesting.GetAsync(grant.Database));
+    }
 }
