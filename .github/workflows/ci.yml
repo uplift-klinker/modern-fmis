@@ -12,11 +12,14 @@ permissions:
 
 jobs:
   backend:
+    name: Backend
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the repository
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-dotnet@v5
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
 
@@ -30,21 +33,24 @@ jobs:
         run: dotnet test Fmis.slnx --configuration Release --no-build
 
   frontend:
+    name: Frontend
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the repository
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Lint
@@ -60,27 +66,31 @@ jobs:
         run: pnpm build
 
   contract:
+    name: Contract test
     runs-on: ubuntu-latest
     defaults:
       run:
         working-directory: frontend
     steps:
-      - uses: actions/checkout@v7
+      - name: Check out the repository
+        uses: actions/checkout@v7
 
-      - uses: actions/setup-node@v6
+      - name: Set up Node
+        uses: actions/setup-node@v6
         with:
           node-version: 24
 
       - name: Enable Corepack
         run: corepack enable
 
-      - name: Install
+      - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Contract test
         run: pnpm test:contract
 
   infra-preview:
+    name: Infra preview
     needs: [backend]
     uses: ./.github/workflows/infra-stacks.yml
     with:
