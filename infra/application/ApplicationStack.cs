@@ -23,9 +23,9 @@ public class ApplicationStack : Stack
                 Location = location,
             });
 
-        var auth = new StackReference("auth", new StackReferenceArgs { Name = $"fmis-auth/{env}" });
-        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
-        var identity = new StackReference("identity", new StackReferenceArgs { Name = $"fmis-identity/{env}" });
+        var auth = new StackReference("auth", new StackReferenceArgs { Name = $"organization/fmis-auth/{env}" });
+        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"organization/fmis-persistence/{env}" });
+        var identity = new StackReference("identity", new StackReferenceArgs { Name = $"organization/fmis-identity/{env}" });
 
         var acrLoginServer = persistence.GetOutput("acrLoginServer").Apply(v => v!.ToString()!);
 

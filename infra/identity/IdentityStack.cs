@@ -25,7 +25,7 @@ public class IdentityStack : Stack
                 Location = location,
             });
 
-        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
+        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"organization/fmis-persistence/{env}" });
 
         var appIdentity = new AppIdentity(ResourceNames.For(env, "app", "identity"), resourceGroup.Name, location);
 
