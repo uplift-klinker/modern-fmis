@@ -27,7 +27,7 @@ public class ApplicationStack : Stack
         var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"organization/fmis-persistence/{env}" });
         var identity = new StackReference("identity", new StackReferenceArgs { Name = $"organization/fmis-identity/{env}" });
 
-        var acrLoginServer = persistence.GetOutput("acrLoginServer").Apply(v => v!.ToString()!);
+        var acrLoginServer = persistence.RequireString("acrLoginServer");
 
         var imageTag = Output.Format($"{acrLoginServer}/fmis-backend:latest");
 
@@ -54,21 +54,21 @@ public class ApplicationStack : Stack
             location,
             imageRef: imageTag,
             acrLoginServer: acrLoginServer,
-            identityResourceId: identity.GetOutput("appIdentityResourceId").Apply(v => v!.ToString()!),
-            identityClientId: identity.GetOutput("appIdentityClientId").Apply(v => v!.ToString()!),
-            identityName: identity.GetOutput("appIdentityName").Apply(v => v!.ToString()!),
-            serverFqdn: persistence.GetOutput("serverFqdn").Apply(v => v!.ToString()!),
-            databaseName: persistence.GetOutput("databaseName").Apply(v => v!.ToString()!),
-            authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
-            audience: auth.GetOutput("audience").Apply(v => v!.ToString()!),
+            identityResourceId: identity.RequireString("appIdentityResourceId"),
+            identityClientId: identity.RequireString("appIdentityClientId"),
+            identityName: identity.RequireString("appIdentityName"),
+            serverFqdn: persistence.RequireString("serverFqdn"),
+            databaseName: persistence.RequireString("databaseName"),
+            authDomain: auth.RequireString("domain"),
+            audience: auth.RequireString("audience"),
             frontendUrl: frontendSite.Url,
             options: new ComponentResourceOptions { DependsOn = { image } });
 
         frontendSite.WriteConfig(
             backendUrl: backend.Url,
-            authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
-            spaClientId: auth.GetOutput("spaClientId").Apply(v => v!.ToString()!),
-            audience: auth.GetOutput("audience").Apply(v => v!.ToString()!));
+            authDomain: auth.RequireString("domain"),
+            spaClientId: auth.RequireString("spaClientId"),
+            audience: auth.RequireString("audience"));
 
         BackendUrl = backend.Url;
         FrontendUrl = frontendSite.Url;
