@@ -1,4 +1,4 @@
-name: infra-stacks
+name: pulumi-stacks
 
 on:
   workflow_call:
@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   stacks:
-    name: Infra stacks — ${{ inputs.command }}
+    name: Pulumi stacks — ${{ inputs.command }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     env:
@@ -54,6 +54,14 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           global-json-file: global.json
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
 
       - name: Log in to Azure
         uses: azure/login@v3
@@ -78,6 +86,10 @@ jobs:
           echo "DEPLOYER_IP=$(curl -s ifconfig.me)" >> "$GITHUB_ENV"
           echo "DEPLOY_PRINCIPAL_OBJECT_ID=$(az ad sp show --id ${{ secrets.AZURE_CLIENT_ID }} --query id -o tsv)" >> "$GITHUB_ENV"
 
+      - name: Build the frontend
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile && pnpm build
+
       - name: Auth — pulumi ${{ inputs.command }}
         working-directory: infra/auth
         run: |
@@ -92,6 +104,16 @@ jobs:
 
       - name: Identity — pulumi ${{ inputs.command }}
         working-directory: infra/identity
+        run: |
+          pulumi stack select "${{ inputs.environment }}" || pulumi stack init "${{ inputs.environment }}"
+          pulumi ${{ inputs.command == 'up' && 'up --yes' || 'preview' }}
+
+      - name: Log in to the container registry
+        if: ${{ inputs.command == 'up' }}
+        run: az acr login --name fmis${{ inputs.environment }}acr
+
+      - name: Application — pulumi ${{ inputs.command }}
+        working-directory: infra/application
         run: |
           pulumi stack select "${{ inputs.environment }}" || pulumi stack init "${{ inputs.environment }}"
           pulumi ${{ inputs.command == 'up' && 'up --yes' || 'preview' }}

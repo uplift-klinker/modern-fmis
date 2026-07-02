@@ -89,10 +89,10 @@ jobs:
       - name: Contract test
         run: pnpm test:contract
 
-  infra-preview:
-    name: Infra preview
+  preview:
+    name: Preview
     needs: [backend]
-    uses: ./.github/workflows/infra-stacks.yml
+    uses: ./.github/workflows/pulumi-stacks.yml
     with:
       command: preview
       environment: dev
