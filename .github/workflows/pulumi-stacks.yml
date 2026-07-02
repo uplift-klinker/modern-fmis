@@ -112,9 +112,8 @@ jobs:
         if: ${{ inputs.command == 'up' }}
         run: az acr login --name fmis${{ inputs.environment }}acr
 
-      - name: Application — pulumi up
-        if: ${{ inputs.command == 'up' }}
+      - name: Application — pulumi ${{ inputs.command }}
         working-directory: infra/application
         run: |
           pulumi stack select "${{ inputs.environment }}" || pulumi stack init "${{ inputs.environment }}"
-          pulumi up --yes
+          pulumi ${{ inputs.command == 'up' && 'up --yes' || 'preview' }}
