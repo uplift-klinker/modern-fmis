@@ -51,6 +51,8 @@ jobs:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      - name: ACR login
+        run: az acr login --name fmis${ENVIRONMENT}acr
       - uses: pulumi/actions@v7
         with:
           pulumi-version: 3.247.0
