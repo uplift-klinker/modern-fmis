@@ -1,3 +1,5 @@
 <Project Sdk="Microsoft.NET.Sdk">
-
+  <ItemGroup>
+    <PackageReference Include="Pulumi" Version="3.107.1" />
+  </ItemGroup>
 </Project>
