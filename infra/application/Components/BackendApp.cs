@@ -8,8 +8,6 @@ public sealed class BackendApp : ComponentResource
     private const string AcrPullRoleDefinitionId =
         "/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d";
 
-    private const string AcrPullRoleAssignmentName = "a1b2c3d4-e5f6-7890-abcd-ef1234567890";
-
     public Output<string> Url { get; }
 
     public BackendApp(
@@ -96,9 +94,11 @@ public sealed class BackendApp : ComponentResource
             },
         }, childOptions);
 
+        var acrPullRoleAssignmentName = Output.Tuple(registryId, identityPrincipalId)
+            .Apply(t => DeterministicRoleAssignmentName(t.Item1, t.Item2));
         new AzureNative.Authorization.RoleAssignment($"{name}-acr-pull", new AzureNative.Authorization.RoleAssignmentArgs
         {
-            RoleAssignmentName = AcrPullRoleAssignmentName,
+            RoleAssignmentName = acrPullRoleAssignmentName,
             RoleDefinitionId = AcrPullRoleDefinitionId,
             PrincipalId = identityPrincipalId,
             PrincipalType = AzureNative.Authorization.PrincipalType.ServicePrincipal,
@@ -107,5 +107,12 @@ public sealed class BackendApp : ComponentResource
 
         Url = app.Configuration.Apply(c => $"https://{c!.Ingress!.Fqdn}");
         RegisterOutputs();
+    }
+
+    private static string DeterministicRoleAssignmentName(string scope, string principalId)
+    {
+        var hash = System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes($"{scope}|{principalId}|acrpull"));
+        return new Guid(hash[..16]).ToString();
     }
 }
