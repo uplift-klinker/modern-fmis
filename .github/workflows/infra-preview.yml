@@ -1,4 +1,4 @@
-name: infra-deploy
+name: infra-preview
 
 on:
   workflow_call:
@@ -28,14 +28,14 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
+  preview:
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
     steps:
       - uses: actions/checkout@v7
       - uses: ./.github/actions/pulumi-stacks
         with:
-          command: up
+          command: preview
           environment: ${{ inputs.environment }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}

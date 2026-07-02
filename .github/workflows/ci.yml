@@ -82,10 +82,9 @@ jobs:
 
   infra-preview:
     needs: [backend]
-    uses: ./.github/workflows/infra-deploy.yml
+    uses: ./.github/workflows/infra-preview.yml
     with:
       environment: dev
-      deploy: false
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

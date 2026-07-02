@@ -16,7 +16,6 @@ jobs:
     uses: ./.github/workflows/infra-deploy.yml
     with:
       environment: dev
-      deploy: true
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
