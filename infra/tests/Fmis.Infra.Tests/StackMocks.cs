@@ -9,20 +9,24 @@ internal class StackMocks : IMocks
     {
         if (args.Type == "pulumi:pulumi:StackReference")
         {
-            var outputs = args.Name.Contains("auth")
-                ? new Dictionary<string, object>
+            Dictionary<string, object> outputs;
+            if (args.Name.Contains("auth"))
+                outputs = new() { ["domain"] = "fmis-dev.us.auth0.com", ["spaClientId"] = "spa-client-id", ["audience"] = "https://dev.api.modern-fmis" };
+            else if (args.Name.Contains("identity"))
+                outputs = new()
                 {
-                    ["domain"] = "fmis-dev.us.auth0.com",
-                    ["spaClientId"] = "spa-client-id",
-                    ["audience"] = "https://dev.api.modern-fmis",
-                }
-                : new Dictionary<string, object>
-                {
-                    ["serverFqdn"] = "fmis-dev-persistence-postgres.postgres.database.azure.com",
-                    ["databaseName"] = "fmis",
                     ["appIdentityClientId"] = "00000000-0000-0000-0000-000000000001",
                     ["appIdentityPrincipalId"] = "00000000-0000-0000-0000-000000000002",
                     ["appIdentityName"] = "fmis-dev-app-identity",
+                    ["appIdentityResourceId"] = "/subscriptions/sub/resourceGroups/fmis-dev-identity-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fmis-dev-app-identity",
+                };
+            else
+                outputs = new()
+                {
+                    ["serverFqdn"] = "fmis-dev-persistence-postgres.postgres.database.azure.com",
+                    ["databaseName"] = "fmis",
+                    ["acrLoginServer"] = "fmisdevacr.azurecr.io",
+                    ["acrId"] = "/subscriptions/sub/resourceGroups/fmis-dev-persistence-rg/providers/Microsoft.ContainerRegistry/registries/fmisdevacr",
                 };
             var refState = args.Inputs.ToBuilder();
             refState["outputs"] = outputs;
