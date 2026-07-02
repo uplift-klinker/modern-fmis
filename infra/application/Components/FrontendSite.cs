@@ -39,13 +39,16 @@ public sealed class FrontendSite : ComponentResource
             Error404Document = "index.html",
         }, childOptions);
 
-        new Pulumi.SyncedFolder.AzureBlobFolder($"{name}-dist", new Pulumi.SyncedFolder.AzureBlobFolderArgs
+        if (!Deployment.Instance.IsDryRun)
         {
-            Path = "../../frontend/dist",
-            ResourceGroupName = resourceGroupName,
-            StorageAccountName = account.Name,
-            ContainerName = "$web",
-        }, new ComponentResourceOptions { Parent = this });
+            new Pulumi.SyncedFolder.AzureBlobFolder($"{name}-dist", new Pulumi.SyncedFolder.AzureBlobFolderArgs
+            {
+                Path = "../../frontend/dist",
+                ResourceGroupName = resourceGroupName,
+                StorageAccountName = account.Name,
+                ContainerName = "$web",
+            }, new ComponentResourceOptions { Parent = this });
+        }
 
         Url = account.PrimaryEndpoints.Apply(e => e?.Web ?? "");
         ConfigJson = Output.Create("");
@@ -61,14 +64,17 @@ public sealed class FrontendSite : ComponentResource
     {
         var json = Output.Format($"{{\"apiBaseUrl\":\"{backendUrl}\",\"auth\":{{\"domain\":\"{authDomain}\",\"clientId\":\"{spaClientId}\",\"audience\":\"{audience}\"}}}}");
         ConfigJson = json;
-        new AzureNative.Storage.Blob("config.json", new AzureNative.Storage.BlobArgs
+        if (!Deployment.Instance.IsDryRun)
         {
-            ResourceGroupName = resourceGroupName,
-            AccountName = account.Name,
-            ContainerName = "$web",
-            BlobName = "config.json",
-            ContentType = "application/json",
-            Source = json.Apply(c => (AssetOrArchive)new StringAsset(c)),
-        }, new CustomResourceOptions { Parent = this });
+            new AzureNative.Storage.Blob("config.json", new AzureNative.Storage.BlobArgs
+            {
+                ResourceGroupName = resourceGroupName,
+                AccountName = account.Name,
+                ContainerName = "$web",
+                BlobName = "config.json",
+                ContentType = "application/json",
+                Source = json.Apply(c => (AssetOrArchive)new StringAsset(c)),
+            }, new CustomResourceOptions { Parent = this });
+        }
     }
 }
