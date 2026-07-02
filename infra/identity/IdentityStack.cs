@@ -23,5 +23,10 @@ public class IdentityStack : Stack
         var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
 
         var appIdentity = new AppIdentity(ResourceNames.For(env, "app", "identity"), resourceGroup.Name, location);
+
+        var deployerPrincipalId = Environment.GetEnvironmentVariable("DEPLOY_PRINCIPAL_OBJECT_ID")
+            ?? throw new InvalidOperationException("DEPLOY_PRINCIPAL_OBJECT_ID environment variable is required.");
+        var acrId = persistence.GetOutput("acrId").Apply(v => v!.ToString()!);
+        var registryAccess = new RegistryAccess(ResourceNames.For(env, "identity", "registry-access"), acrId, appIdentity.PrincipalId, deployerPrincipalId);
     }
 }
