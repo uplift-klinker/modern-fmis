@@ -27,7 +27,7 @@ public class ApplicationStack : Stack
         var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"organization/fmis-persistence/{env}" });
         var identity = new StackReference("identity", new StackReferenceArgs { Name = $"organization/fmis-identity/{env}" });
 
-        var acrLoginServer = persistence.RequireString("acrLoginServer");
+        var acrLoginServer = persistence.RequireString("acrLoginServer", $"fmis{env}acr.azurecr.io");
 
         var imageTag = Output.Format($"{acrLoginServer}/fmis-backend:latest");
 
@@ -54,7 +54,8 @@ public class ApplicationStack : Stack
             location,
             imageRef: imageTag,
             acrLoginServer: acrLoginServer,
-            identityResourceId: identity.RequireString("appIdentityResourceId"),
+            identityResourceId: identity.RequireString("appIdentityResourceId",
+                $"/subscriptions/00000000-0000-0000-0000-000000000000/resourceGroups/fmis-{env}-identity-rg/providers/Microsoft.ManagedIdentity/userAssignedIdentities/fmis-{env}-app-identity"),
             identityClientId: identity.RequireString("appIdentityClientId"),
             identityName: identity.RequireString("appIdentityName"),
             serverFqdn: persistence.RequireString("serverFqdn"),
