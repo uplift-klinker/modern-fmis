@@ -82,8 +82,9 @@ jobs:
 
   infra-preview:
     needs: [backend]
-    uses: ./.github/workflows/infra-preview.yml
+    uses: ./.github/workflows/infra-stacks.yml
     with:
+      command: preview
       environment: dev
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
