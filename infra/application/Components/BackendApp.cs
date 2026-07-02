@@ -5,9 +5,6 @@ namespace Fmis.Infra.Application.Components;
 
 public sealed class BackendApp : ComponentResource
 {
-    private const string AcrPullRoleDefinitionId =
-        "/providers/Microsoft.Authorization/roleDefinitions/7f951dda-4ed3-4680-a7ca-43fe172d538d";
-
     public Output<string> Url { get; }
 
     public BackendApp(
@@ -18,14 +15,12 @@ public sealed class BackendApp : ComponentResource
         Input<string> acrLoginServer,
         Input<string> identityResourceId,
         Input<string> identityClientId,
-        Input<string> identityPrincipalId,
         Input<string> serverFqdn,
         Input<string> databaseName,
         Input<string> identityName,
         Input<string> authDomain,
         Input<string> audience,
         Input<string> frontendUrl,
-        Input<string> registryId,
         ComponentResourceOptions? options = null)
         : base("fmis:application:BackendApp", name, options)
     {
@@ -94,25 +89,7 @@ public sealed class BackendApp : ComponentResource
             },
         }, childOptions);
 
-        var acrPullRoleAssignmentName = Output.Tuple(registryId, identityPrincipalId)
-            .Apply(t => DeterministicRoleAssignmentName(t.Item1, t.Item2));
-        new AzureNative.Authorization.RoleAssignment($"{name}-acr-pull", new AzureNative.Authorization.RoleAssignmentArgs
-        {
-            RoleAssignmentName = acrPullRoleAssignmentName,
-            RoleDefinitionId = AcrPullRoleDefinitionId,
-            PrincipalId = identityPrincipalId,
-            PrincipalType = AzureNative.Authorization.PrincipalType.ServicePrincipal,
-            Scope = registryId,
-        }, childOptions);
-
         Url = app.Configuration.Apply(c => $"https://{c!.Ingress!.Fqdn}");
         RegisterOutputs();
-    }
-
-    private static string DeterministicRoleAssignmentName(string scope, string principalId)
-    {
-        var hash = System.Security.Cryptography.SHA256.HashData(
-            System.Text.Encoding.UTF8.GetBytes($"{scope}|{principalId}|acrpull"));
-        return new Guid(hash[..16]).ToString();
     }
 }

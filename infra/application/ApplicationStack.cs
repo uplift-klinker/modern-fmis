@@ -23,16 +23,13 @@ public class ApplicationStack : Stack
                 Location = location,
             });
 
-        var registry = new ContainerRegistry($"fmis{env}acr", resourceGroup.Name, location);
+        var auth = new StackReference("auth", new StackReferenceArgs { Name = $"fmis-auth/{env}" });
+        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
+        var identity = new StackReference("identity", new StackReferenceArgs { Name = $"fmis-identity/{env}" });
 
-        var registryCredentials = AzureNative.ContainerRegistry.ListRegistryCredentials.Invoke(
-            new AzureNative.ContainerRegistry.ListRegistryCredentialsInvokeArgs
-            {
-                ResourceGroupName = resourceGroup.Name,
-                RegistryName = registry.Name,
-            });
+        var acrLoginServer = persistence.GetOutput("acrLoginServer").Apply(v => v!.ToString()!);
 
-        var imageTag = Output.Format($"{registry.LoginServer}/fmis-backend:latest");
+        var imageTag = Output.Format($"{acrLoginServer}/fmis-backend:latest");
 
         var image = new Pulumi.DockerBuild.Image($"fmis{env}acr-backend", new Pulumi.DockerBuild.ImageArgs
         {
@@ -44,43 +41,27 @@ public class ApplicationStack : Stack
             {
                 new Pulumi.DockerBuild.Inputs.RegistryArgs
                 {
-                    Address = registry.LoginServer,
-                    Username = registryCredentials.Apply(c => c.Username!),
-                    Password = registryCredentials.Apply(c => c.Passwords![0].Value!),
+                    Address = acrLoginServer,
                 }
             },
-        }, new CustomResourceOptions { DependsOn = { registry.Registry } });
-
-        var auth = new StackReference("auth", new StackReferenceArgs { Name = $"fmis-auth/{env}" });
-        var persistence = new StackReference("persistence", new StackReferenceArgs { Name = $"fmis-persistence/{env}" });
+        });
 
         var frontendSite = new FrontendSite($"fmis{env}web", resourceGroup.Name, location);
-
-        var persistenceRg = $"fmis-{env}-persistence-rg";
-        var clientConfig = AzureNative.Authorization.GetClientConfig.Invoke();
-
-        var identityResourceId = Output.Tuple(
-            clientConfig.Apply(c => c.SubscriptionId),
-            persistence.GetOutput("appIdentityName").Apply(v => v!.ToString()!)
-        ).Apply(t =>
-            $"/subscriptions/{t.Item1}/resourceGroups/{persistenceRg}/providers/Microsoft.ManagedIdentity/userAssignedIdentities/{t.Item2}");
 
         var backend = new BackendApp(
             $"fmis-{env}-backend",
             resourceGroup.Name,
             location,
             imageRef: imageTag,
-            acrLoginServer: registry.LoginServer,
-            identityResourceId: identityResourceId,
-            identityClientId: persistence.GetOutput("appIdentityClientId").Apply(v => v!.ToString()!),
-            identityPrincipalId: persistence.GetOutput("appIdentityPrincipalId").Apply(v => v!.ToString()!),
+            acrLoginServer: acrLoginServer,
+            identityResourceId: identity.GetOutput("appIdentityResourceId").Apply(v => v!.ToString()!),
+            identityClientId: identity.GetOutput("appIdentityClientId").Apply(v => v!.ToString()!),
+            identityName: identity.GetOutput("appIdentityName").Apply(v => v!.ToString()!),
             serverFqdn: persistence.GetOutput("serverFqdn").Apply(v => v!.ToString()!),
             databaseName: persistence.GetOutput("databaseName").Apply(v => v!.ToString()!),
-            identityName: persistence.GetOutput("appIdentityName").Apply(v => v!.ToString()!),
             authDomain: auth.GetOutput("domain").Apply(v => v!.ToString()!),
             audience: auth.GetOutput("audience").Apply(v => v!.ToString()!),
             frontendUrl: frontendSite.Url,
-            registryId: registry.Registry.Id,
             options: new ComponentResourceOptions { DependsOn = { image } });
 
         frontendSite.WriteConfig(

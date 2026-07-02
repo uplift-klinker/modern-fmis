@@ -18,15 +18,6 @@ public class ApplicationStackTests
 
 
     [Fact]
-    public async Task Creates_a_basic_container_registry()
-    {
-        var resources = await InfraTesting.RunApplicationStackAsync();
-
-        var registry = resources.OfType<AzureNative.ContainerRegistry.Registry>().Single();
-        Assert.Equal("Basic", await InfraTesting.GetAsync(registry.Sku.Apply(s => s.Name)));
-    }
-
-    [Fact]
     public async Task Runs_an_externally_ingressed_scale_to_zero_backend_app()
     {
         var resources = await InfraTesting.RunApplicationStackAsync();
