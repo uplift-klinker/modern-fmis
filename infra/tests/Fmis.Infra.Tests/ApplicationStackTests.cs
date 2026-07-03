@@ -54,6 +54,15 @@ public class ApplicationStackTests
     }
 
     [Fact]
+    public async Task Permits_shared_key_uploads_to_the_public_static_site_account()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        var account = resources.OfType<AzureNative.Storage.StorageAccount>().Single();
+        Assert.True(await InfraTesting.GetAsync(account.AllowSharedKeyAccess));
+    }
+
+    [Fact]
     public async Task Writes_a_config_json_blob_with_the_spa_settings()
     {
         var resources = await InfraTesting.RunApplicationStackAsync();

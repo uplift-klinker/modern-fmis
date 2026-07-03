@@ -38,3 +38,11 @@ Classify a storage account by **what it holds, not by being a storage account**:
 | Durable data (videos, zips, uploads, anything not regenerable from source) | Persistence | Yes |
 
 A single phase may provision storage accounts in **both** tiers.
+
+## Storage data-plane authorization
+
+The default and preferred posture across this repository is **key-less, Microsoft Entra (Azure AD) authorization** — managed identities and Entra tokens, never account access keys. This holds unconditionally for the **persistence tier**: those accounts hold durable, sensitive data, so Shared Key access is disabled and every data-plane operation goes through Entra ID + a data-plane RBAC role.
+
+The **application tier's static-site account is a deliberate, documented exception.** Its `$web` container holds only public, non-sensitive, fully regenerable assets (the built SPA bundle and a `config.json` of public runtime settings), so it keeps `AllowSharedKeyAccess = true` and its `dist`/`config.json` uploads authorize with the account key (obtained via `listKeys`) rather than an Entra token.
+
+This exception exists for one reason: the deploy tooling requires it. Pulumi's `azure-native:storage:Blob` and `Pulumi.SyncedFolder.AzureBlobFolder` authenticate blob writes **only** with a Shared Key fetched via `listKeys` — they have no Entra/AAD data-plane mode (confirmed by `pulumi/pulumi-azure-native#3719`, which deliberately reverted the token-based path for backward compatibility). Because this content is public and non-critical, it does not warrant the persistence tier's governance, so accepting Shared Key here is an acceptable trade to keep the declarative deployment path. **Do not carry this exception into any account that holds sensitive or durable data** — those remain key-less/Entra-only.
