@@ -11,12 +11,13 @@ permissions:
   contents: read
 
 jobs:
-  infra:
+  deploy:
+    name: Deploy
     if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
-    uses: ./.github/workflows/infra-deploy.yml
+    uses: ./.github/workflows/pulumi-stacks.yml
     with:
+      command: up
       environment: dev
-      deploy: true
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -25,46 +26,3 @@ jobs:
       AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
       AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
       AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
-
-  apps:
-    needs: [infra]
-    runs-on: ubuntu-latest
-    environment: dev
-    env:
-      ENVIRONMENT: dev
-      PULUMI_STATE_ACCOUNT: fmisdevtfstate
-      PULUMI_STATE_CONTAINER: pulumi-state
-    steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-dotnet@v5
-        with:
-          global-json-file: global.json
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 24
-      - run: corepack enable
-      - name: Build frontend
-        working-directory: frontend
-        run: pnpm install --frozen-lockfile && pnpm build
-      - uses: azure/login@v3
-        with:
-          client-id: ${{ secrets.AZURE_CLIENT_ID }}
-          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
-          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      - name: ACR login
-        run: az acr login --name fmis${ENVIRONMENT}acr
-      - uses: pulumi/actions@v7
-        with:
-          pulumi-version: 3.247.0
-      - name: Pulumi login (azblob)
-        run: pulumi login "azblob://${PULUMI_STATE_CONTAINER}?storage_account=${PULUMI_STATE_ACCOUNT}"
-      - name: Select or init the application stack
-        working-directory: infra/application
-        run: pulumi stack select dev || pulumi stack init dev
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-      - name: Application up
-        working-directory: infra/application
-        env:
-          PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
-        run: pulumi up --yes
