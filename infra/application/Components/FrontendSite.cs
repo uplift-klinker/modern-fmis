@@ -29,6 +29,7 @@ public sealed class FrontendSite : ComponentResource
             Location = location,
             Sku = new AzureNative.Storage.Inputs.SkuArgs { Name = AzureNative.Storage.SkuName.Standard_LRS },
             Kind = AzureNative.Storage.Kind.StorageV2,
+            AllowSharedKeyAccess = true,
         }, childOptions);
 
         new AzureNative.Storage.StorageAccountStaticWebsite($"{name}-static", new AzureNative.Storage.StorageAccountStaticWebsiteArgs
