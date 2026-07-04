@@ -3,7 +3,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 export function WelcomePage() {
   return (
-    <Box>
+    <Box sx={{ p: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>
         Welcome to modern-fmis
       </Typography>
