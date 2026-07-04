@@ -21,10 +21,30 @@ describe("client schemas", () => {
     const result = CreateClientRequestSchema.safeParse({
       name: "Acme",
       email: null,
-      phoneNumber: "555-0100",
+      phoneNumber: "(555) 555-0100",
     });
 
     expect(result.success).toBe(true);
+  });
+
+  it("rejects a create request with a malformed email", () => {
+    const result = CreateClientRequestSchema.safeParse({
+      name: "Acme",
+      email: "a",
+      phoneNumber: null,
+    });
+
+    expect(result.success).toBe(false);
+  });
+
+  it("rejects a create request with a too-short phone number", () => {
+    const result = CreateClientRequestSchema.safeParse({
+      name: "Acme",
+      email: null,
+      phoneNumber: "555",
+    });
+
+    expect(result.success).toBe(false);
   });
 
   it("rejects a create request with neither email nor phone", () => {

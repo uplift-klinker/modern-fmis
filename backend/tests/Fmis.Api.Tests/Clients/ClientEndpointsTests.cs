@@ -21,7 +21,7 @@ public class ClientEndpointsTests(FmisApiFactory factory) : IClassFixture<FmisAp
         var client = CreateAuthenticatedClient();
 
         var create = await client.PostAsJsonAsync("/clients",
-            new CreateClientRequestModel("Acme Farms", "ops@acme.example", "555-0100"));
+            new CreateClientRequestModel("Acme Farms", "ops@acme.example", "(555) 555-0100"));
         Assert.Equal(HttpStatusCode.Created, create.StatusCode);
 
         var created = await create.Content.ReadFromJsonAsync<ClientResponseModel>();
