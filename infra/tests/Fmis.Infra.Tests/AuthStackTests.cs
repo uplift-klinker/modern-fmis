@@ -5,16 +5,6 @@ namespace Fmis.Infra.Tests;
 public class AuthStackTests
 {
     [Fact]
-    public async Task Creates_the_spa_application_named_for_the_environment()
-    {
-        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
-
-        var clients = resources.OfType<Auth0.Client>().ToList();
-        var spa = clients.Single(c => InfraTesting.GetAsync(c.AppType).Result == "spa");
-        Assert.Equal("fmis-dev-auth-spa", await InfraTesting.GetAsync(spa.Name));
-    }
-
-    [Fact]
     public async Task Creates_the_api_resource_server_with_the_env_named_audience()
     {
         var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
@@ -59,14 +49,23 @@ public class AuthStackTests
     }
 
     [Fact]
-    public async Task Exposes_domain_spa_client_id_and_audience_outputs()
+    public async Task Exposes_domain_and_audience_outputs()
     {
         var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
         var stack = resources.OfType<Fmis.Infra.Auth.AuthStack>().Single();
 
         Assert.Equal("dev.modern-fmis.auth0.com", await InfraTesting.GetAsync(stack.Domain));
         Assert.Equal("https://dev.api.modern-fmis", await InfraTesting.GetAsync(stack.Audience));
-        Assert.NotNull(await InfraTesting.GetAsync(stack.SpaClientId));
+    }
+
+    [Fact]
+    public async Task Does_not_create_a_spa_application()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        Assert.DoesNotContain(
+            resources.OfType<Auth0.Client>(),
+            c => InfraTesting.GetAsync(c.AppType).Result == "spa");
     }
 
     [Fact]
@@ -92,11 +91,15 @@ public class AuthStackTests
     }
 
     [Fact]
-    public async Task Declares_the_spa_as_a_public_client_with_no_token_endpoint_auth()
+    public async Task Relaxes_attack_protection_for_automated_logins()
     {
         var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
 
-        var credentials = resources.OfType<Auth0.ClientCredentials>().Single();
-        Assert.Equal("none", await InfraTesting.GetAsync(credentials.AuthenticationMethod));
+        var protection = resources.OfType<Auth0.AttackProtection>().Single();
+        var bruteForceEnabled = await InfraTesting.GetAsync(protection.BruteForceProtection.Apply(b => b!.Enabled));
+        var suspiciousIpEnabled = await InfraTesting.GetAsync(protection.SuspiciousIpThrottling.Apply(s => s!.Enabled));
+        Assert.False(bruteForceEnabled);
+        Assert.False(suspiciousIpEnabled);
     }
+
 }

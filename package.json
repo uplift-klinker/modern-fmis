@@ -1,0 +1,23 @@
+{
+  "name": "modern-fmis",
+  "private": true,
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "format": "dotnet format Fmis.slnx",
+    "format:check": "dotnet format Fmis.slnx --verify-no-changes",
+    "lint": "pnpm -r run lint",
+    "typecheck": "pnpm -r run typecheck",
+    "build:backend": "dotnet build Fmis.slnx",
+    "build:frontend": "pnpm --filter frontend run build",
+    "build": "pnpm run build:backend && pnpm run build:frontend",
+    "test:backend": "dotnet test Fmis.slnx",
+    "test:frontend": "pnpm --filter frontend run test",
+    "test:contract": "pnpm --filter e2e run test:contract",
+    "test:e2e": "pnpm --filter e2e run test:e2e",
+    "test:smoke": "pnpm --filter e2e run test:smoke",
+    "test": "pnpm run test:backend && pnpm run test:frontend && pnpm run test:contract"
+  }
+}

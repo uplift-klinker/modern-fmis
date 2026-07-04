@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "target": "ES2022",
+    "strict": true,
+    "esModuleInterop": true,
+    "types": ["node"],
+    "paths": {
+      "@/*": ["../frontend/src/*"]
+    }
+  },
+  "include": ["support", "system", "contract", "playwright.config.ts", "playwright.contract.config.ts"]
+}

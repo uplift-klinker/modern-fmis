@@ -1,0 +1,10 @@
+packages:
+  - frontend
+  - e2e
+
+overrides:
+  undici: ^7.28.0
+
+allowBuilds:
+  browser-tabs-lock: true
+  msw: true

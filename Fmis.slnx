@@ -24,7 +24,11 @@
     <File Path="frontend/tsconfig.app.json" />
     <File Path="frontend/tsconfig.node.json" />
     <File Path="frontend/vite.config.ts" />
-    <File Path="frontend/vitest.contract.config.ts" />
     <File Path="frontend/pnpm-workspace.yaml" />
+  </Folder>
+  <Folder Name="/e2e/">
+    <File Path="e2e/package.json" />
+    <File Path="e2e/playwright.config.ts" />
+    <File Path="e2e/playwright.contract.config.ts" />
   </Folder>
 </Solution>

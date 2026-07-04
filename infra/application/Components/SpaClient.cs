@@ -1,16 +1,18 @@
 using Pulumi;
 using Auth0 = Pulumi.Auth0;
 
-namespace Fmis.Infra.Auth.Components;
+namespace Fmis.Infra.Application.Components;
 
-public sealed class SpaApplication : ComponentResource
+public sealed class SpaClient : ComponentResource
 {
     public Output<string> ClientId { get; }
 
-    public SpaApplication(string name, ComponentResourceOptions? options = null)
-        : base("fmis:auth:SpaApplication", name, options)
+    public SpaClient(string name, Input<string> frontendUrl, ComponentResourceOptions? options = null)
+        : base("fmis:application:SpaClient", name, options)
     {
         var childOptions = new CustomResourceOptions { Parent = this };
+
+        var callbacks = frontendUrl.ToOutput().Apply(url => new[] { "http://localhost:5173", url });
 
         var client = new Auth0.Client(name, new Auth0.ClientArgs
         {
@@ -18,12 +20,12 @@ public sealed class SpaApplication : ComponentResource
             AppType = "spa",
             OidcConformant = true,
             GrantTypes = { "authorization_code", "refresh_token" },
-            Callbacks = { "http://localhost:5173" },
-            AllowedLogoutUrls = { "http://localhost:5173" },
-            WebOrigins = { "http://localhost:5173" },
+            Callbacks = callbacks,
+            AllowedLogoutUrls = callbacks,
+            WebOrigins = callbacks,
         }, childOptions);
 
-        new Auth0.ClientCredentials($"{name}-creds", new Auth0.ClientCredentialsArgs
+        _ = new Auth0.ClientCredentials($"{name}-creds", new Auth0.ClientCredentialsArgs
         {
             ClientId = client.ClientId,
             AuthenticationMethod = "none",

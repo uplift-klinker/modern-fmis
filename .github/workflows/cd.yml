@@ -11,13 +11,28 @@ permissions:
   contents: read
 
 jobs:
+  gate:
+    name: Approve dev
+    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    runs-on: ubuntu-latest
+    environment: dev
+    outputs:
+      environment: ${{ steps.select.outputs.environment }}
+      suite: ${{ steps.select.outputs.suite }}
+    steps:
+      - name: Select environment and verification suite
+        id: select
+        run: |
+          echo "environment=dev" >> "$GITHUB_OUTPUT"
+          echo "suite=e2e" >> "$GITHUB_OUTPUT"
+
   deploy:
     name: Deploy
-    if: ${{ github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' }}
+    needs: [gate]
     uses: ./.github/workflows/pulumi-stacks.yml
     with:
       command: up
-      environment: dev
+      environment: ${{ needs.gate.outputs.environment }}
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
@@ -26,3 +41,69 @@ jobs:
       AUTH0_DOMAIN: ${{ secrets.AUTH0_DOMAIN }}
       AUTH0_CLIENT_ID: ${{ secrets.AUTH0_CLIENT_ID }}
       AUTH0_CLIENT_SECRET: ${{ secrets.AUTH0_CLIENT_SECRET }}
+
+  verify:
+    name: Verify (${{ needs.gate.outputs.suite }})
+    needs: [gate, deploy]
+    runs-on: ubuntu-latest
+    env:
+      ENVIRONMENT: ${{ needs.gate.outputs.environment }}
+      PULUMI_STATE_ACCOUNT: fmis${{ needs.gate.outputs.environment }}tfstate
+      PULUMI_STATE_CONTAINER: pulumi-state
+      PULUMI_CONFIG_PASSPHRASE: ${{ secrets.PULUMI_CONFIG_PASSPHRASE }}
+      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v7
+
+      - name: Log in to Azure
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Set up Pulumi
+        uses: pulumi/actions@v7
+        with:
+          pulumi-version: 3.247.0
+
+      - name: Log in to the Pulumi state backend
+        run: pulumi login "azblob://${PULUMI_STATE_CONTAINER}?storage_account=${PULUMI_STATE_ACCOUNT}"
+
+      - name: Read stack outputs
+        run: |
+          cd infra/application
+          pulumi stack select "${ENVIRONMENT}"
+          echo "E2E_FRONTEND_URL=$(pulumi stack output frontendUrl)" >> "$GITHUB_ENV"
+          echo "E2E_BACKEND_URL=$(pulumi stack output backendUrl)" >> "$GITHUB_ENV"
+          echo "E2E_SPA_CLIENT_ID=$(pulumi stack output spaClientId)" >> "$GITHUB_ENV"
+          cd ../auth
+          pulumi stack select "${ENVIRONMENT}"
+          echo "::add-mask::$(pulumi stack output e2eClientSecret --show-secrets)"
+          echo "::add-mask::$(pulumi stack output e2ePassword --show-secrets)"
+          {
+            echo "E2E_AUTH_DOMAIN=$(pulumi stack output domain)"
+            echo "E2E_AUTH_AUDIENCE=$(pulumi stack output audience)"
+            echo "E2E_CLIENT_ID=$(pulumi stack output e2eClientId --show-secrets)"
+            echo "E2E_CLIENT_SECRET=$(pulumi stack output e2eClientSecret --show-secrets)"
+            echo "E2E_USERNAME=$(pulumi stack output e2eUsername --show-secrets)"
+            echo "E2E_PASSWORD=$(pulumi stack output e2ePassword --show-secrets)"
+          } >> "$GITHUB_ENV"
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+
+      - name: Enable Corepack
+        run: corepack enable
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: pnpm --filter e2e exec playwright install --with-deps chromium
+
+      - name: Run ${{ needs.gate.outputs.suite }} suite
+        run: pnpm --filter e2e run test:${{ needs.gate.outputs.suite }}

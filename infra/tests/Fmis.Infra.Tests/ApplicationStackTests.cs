@@ -1,4 +1,5 @@
 using AzureNative = Pulumi.AzureNative;
+using Auth0 = Pulumi.Auth0;
 using Fmis.Infra.Application.Components;
 
 namespace Fmis.Infra.Tests;
@@ -72,6 +73,7 @@ public class ApplicationStackTests
         var json = await InfraTesting.GetAsync(site.ConfigJson);
         Assert.Contains("\"apiBaseUrl\"", json);
         Assert.Contains("\"audience\"", json);
+        Assert.Contains("\"clientId\"", json);
     }
 
     [Fact]
@@ -82,5 +84,34 @@ public class ApplicationStackTests
 
         Assert.NotNull(await InfraTesting.GetAsync(stack.BackendUrl));
         Assert.NotNull(await InfraTesting.GetAsync(stack.FrontendUrl));
+    }
+
+    [Fact]
+    public async Task Creates_a_spa_client_allowing_localhost_and_the_deployed_site()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        var spa = resources.OfType<Auth0.Client>().Single(c => InfraTesting.GetAsync(c.AppType).Result == "spa");
+        var callbacks = await InfraTesting.GetAsync(spa.Callbacks);
+        Assert.Contains("http://localhost:5173", callbacks);
+        Assert.Contains("https://fmisdevweb.z00.web.core.windows.net/", callbacks);
+    }
+
+    [Fact]
+    public async Task Declares_the_spa_as_a_public_client_with_no_token_endpoint_auth()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+
+        var credentials = resources.OfType<Auth0.ClientCredentials>().Single();
+        Assert.Equal("none", await InfraTesting.GetAsync(credentials.AuthenticationMethod));
+    }
+
+    [Fact]
+    public async Task Exposes_the_spa_client_id_output()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+        var stack = resources.OfType<Fmis.Infra.Application.ApplicationStack>().Single();
+
+        Assert.NotNull(await InfraTesting.GetAsync(stack.SpaClientId));
     }
 }

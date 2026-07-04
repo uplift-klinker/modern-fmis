@@ -11,6 +11,11 @@ on:
         description: Target environment name (e.g. dev).
         required: true
         type: string
+      gated_environment:
+        description: GitHub environment to bind for approval; empty to skip the gate.
+        required: false
+        type: string
+        default: ''
     secrets:
       AZURE_CLIENT_ID:
         required: true
@@ -35,7 +40,7 @@ jobs:
   stacks:
     name: Pulumi stacks — ${{ inputs.command }}
     runs-on: ubuntu-latest
-    environment: ${{ inputs.environment }}
+    environment: ${{ inputs.gated_environment }}
     env:
       ENVIRONMENT: ${{ inputs.environment }}
       PULUMI_STATE_ACCOUNT: fmis${{ inputs.environment }}tfstate
