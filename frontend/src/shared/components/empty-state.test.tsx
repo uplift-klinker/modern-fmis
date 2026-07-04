@@ -5,12 +5,16 @@ import { renderWithProviders } from "@/testing/render-with-providers";
 import { EmptyState } from "@/shared/components/empty-state";
 
 describe("EmptyState", () => {
-  it("shows the message and notifies when the refresh button is clicked", async () => {
+  it("shows the provided message", () => {
+    renderWithProviders(<EmptyState message="No clients yet." onRefresh={() => {}} />);
+
+    expect(screen.getByText("No clients yet.")).toBeInTheDocument();
+  });
+
+  it("notifies when the refresh button is clicked", async () => {
     const onRefresh = vi.fn();
 
     renderWithProviders(<EmptyState message="No clients yet." onRefresh={onRefresh} />);
-
-    expect(screen.getByText("No clients yet.")).toBeInTheDocument();
     await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
 
     expect(onRefresh).toHaveBeenCalledTimes(1);
