@@ -6,8 +6,8 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "format": "dotnet format Fmis.slnx",
-    "format:check": "dotnet format Fmis.slnx --verify-no-changes",
+    "format": "oxfmt frontend e2e && dotnet format Fmis.slnx",
+    "format:check": "oxfmt --check frontend e2e && dotnet format Fmis.slnx --verify-no-changes",
     "lint": "oxlint",
     "typecheck": "pnpm -r run typecheck",
     "build:backend": "dotnet build Fmis.slnx",
@@ -21,6 +21,7 @@
     "test": "pnpm run test:backend && pnpm run test:frontend && pnpm run test:contract"
   },
   "devDependencies": {
+    "oxfmt": "0.57.0",
     "oxlint": "1.72.0"
   }
 }
