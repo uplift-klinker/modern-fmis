@@ -1,12 +1,15 @@
 FROM node:24-alpine AS build
-WORKDIR /app
+WORKDIR /repo
 RUN corepack enable
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-COPY . .
-RUN pnpm build
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json ./
+COPY frontend/package.json frontend/
+COPY e2e/package.json e2e/
+RUN pnpm install --frozen-lockfile --filter frontend
+COPY tsconfig.base.json ./
+COPY frontend/ frontend/
+RUN pnpm --filter frontend run build
 
 FROM nginx:1.27-alpine AS final
-COPY nginx.conf /etc/nginx/conf.d/default.conf
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /repo/frontend/dist /usr/share/nginx/html
 EXPOSE 80
