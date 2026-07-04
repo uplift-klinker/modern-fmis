@@ -35,9 +35,6 @@ jobs:
   frontend:
     name: Frontend
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Check out the repository
         uses: actions/checkout@v7
@@ -54,23 +51,20 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Lint
-        run: pnpm lint
+        run: pnpm --filter frontend run lint
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: pnpm --filter frontend run typecheck
 
       - name: Test
-        run: pnpm test
+        run: pnpm --filter frontend test
 
       - name: Build
-        run: pnpm build
+        run: pnpm --filter frontend run build
 
   contract:
     name: Contract test
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: frontend
     steps:
       - name: Check out the repository
         uses: actions/checkout@v7
@@ -87,7 +81,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Contract test
-        run: pnpm test:contract
+        run: pnpm --filter e2e run test:contract
 
   preview:
     name: Preview
