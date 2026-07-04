@@ -7,12 +7,10 @@ const apiUrl = 'http://localhost:8080';
 async function waitForApi(timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
-    try {
-      const response = await fetch(`${apiUrl}/openapi/v1.json`);
-      if (response.ok) {
-        return;
-      }
-    } catch {}
+    const response = await fetch(`${apiUrl}/openapi/v1.json`).catch(() => null);
+    if (response?.ok) {
+      return;
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
   throw new Error(`Backend API did not become ready at ${apiUrl} within ${timeoutMs}ms`);
