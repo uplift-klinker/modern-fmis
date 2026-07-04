@@ -11,7 +11,7 @@ internal class StackMocks : IMocks
         {
             Dictionary<string, object> outputs;
             if (args.Name.Contains("auth"))
-                outputs = new() { ["domain"] = "fmis-dev.us.auth0.com", ["spaClientId"] = "spa-client-id", ["audience"] = "https://dev.api.modern-fmis" };
+                outputs = new() { ["domain"] = "fmis-dev.us.auth0.com", ["audience"] = "https://dev.api.modern-fmis" };
             else if (args.Name.Contains("identity"))
                 outputs = new()
                 {
@@ -45,6 +45,10 @@ internal class StackMocks : IMocks
                 break;
             }
         }
+        if (args.Type == "auth0:index/client:Client")
+            state["clientId"] = $"{args.Name}_client_id";
+        if (args.Type == "azure-native:storage:StorageAccount")
+            state["primaryEndpoints"] = new Dictionary<string, object> { ["web"] = "https://fmisdevweb.z00.web.core.windows.net/" };
         AddProviderState(state, args);
         return Task.FromResult<(string?, object)>(($"{args.Name}_id", state.ToImmutable()));
     }

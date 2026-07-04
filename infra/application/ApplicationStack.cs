@@ -48,6 +48,8 @@ public class ApplicationStack : Stack
 
         var frontendSite = new FrontendSite($"fmis{env}web", resourceGroup.Name, location);
 
+        var spaClient = new SpaClient($"fmis-{env}-spa", frontendSite.Url);
+
         var backend = new BackendApp(
             $"fmis-{env}-backend",
             resourceGroup.Name,
@@ -68,7 +70,7 @@ public class ApplicationStack : Stack
         frontendSite.WriteConfig(
             backendUrl: backend.Url,
             authDomain: auth.RequireString("domain"),
-            spaClientId: auth.RequireString("spaClientId"),
+            spaClientId: spaClient.ClientId,
             audience: auth.RequireString("audience"));
 
         BackendUrl = backend.Url;

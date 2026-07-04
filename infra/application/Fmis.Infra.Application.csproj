@@ -8,6 +8,7 @@
     <PackageReference Include="Pulumi" Version="3.107.3" />
     <PackageReference Include="Pulumi.AzureNative" Version="3.19.0" />
     <PackageReference Include="Pulumi.DockerBuild" Version="0.0.20" />
+    <PackageReference Include="Pulumi.Auth0" Version="3.45.0" />
     <PackageReference Include="Pulumi.SyncedFolder" Version="0.12.4" />
   </ItemGroup>
 
