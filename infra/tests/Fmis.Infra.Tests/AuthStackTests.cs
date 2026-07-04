@@ -90,4 +90,16 @@ public class AuthStackTests
         Assert.Null(await InfraTesting.GetAsync(stack.E2eClientSecret));
     }
 
+    [Fact]
+    public async Task Relaxes_attack_protection_for_automated_logins()
+    {
+        var resources = await InfraTesting.RunAuthStackAsync(enableE2eUser: false);
+
+        var protection = resources.OfType<Auth0.AttackProtection>().Single();
+        var bruteForceEnabled = await InfraTesting.GetAsync(protection.BruteForceProtection.Apply(b => b!.Enabled));
+        var suspiciousIpEnabled = await InfraTesting.GetAsync(protection.SuspiciousIpThrottling.Apply(s => s!.Enabled));
+        Assert.False(bruteForceEnabled);
+        Assert.False(suspiciousIpEnabled);
+    }
+
 }
