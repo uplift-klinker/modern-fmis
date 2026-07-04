@@ -47,7 +47,7 @@ export function AppLayout() {
       </AppBar>
       <Box
         component="main"
-        sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column" }}
+        sx={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", p: 2 }}
       >
         <Outlet />
       </Box>

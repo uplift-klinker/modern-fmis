@@ -2,7 +2,7 @@ import { Box, Typography } from "@mui/material";
 
 export function UnauthorizedPage() {
   return (
-    <Box sx={{ p: 3 }}>
+    <Box>
       <Typography variant="h4" component="h1" gutterBottom>
         Unauthorized
       </Typography>
