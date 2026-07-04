@@ -1,9 +1,9 @@
-import { useEffect, type ReactNode } from 'react';
-import { useAuth0 } from '@auth0/auth0-react';
-import { useDispatch } from 'react-redux';
-import { setAccessToken } from '@/shared/auth/auth-slice';
-import type { AppDispatch } from '@/app/store';
-import { AuthContext, type AuthState } from '@/shared/auth/auth-context';
+import { useEffect, type ReactNode } from "react";
+import { useAuth0 } from "@auth0/auth0-react";
+import { useDispatch } from "react-redux";
+import { setAccessToken } from "@/shared/auth/auth-slice";
+import type { AppDispatch } from "@/app/store";
+import { AuthContext, type AuthState } from "@/shared/auth/auth-context";
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const auth0 = useAuth0();

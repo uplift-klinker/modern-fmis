@@ -1,10 +1,14 @@
-import { setupServer } from 'msw/node';
-import { http, HttpResponse, delay, type HttpHandler } from 'msw';
-import { ModelFactory, type AppConfigOverrides } from '@/testing/model-factory';
-import { TEST_CONFIG } from '@/testing/test-config';
-import type { AppConfig } from '@/shared/config/app-config';
-import type { ClientList, ClientResponse, CreateClientRequest } from '@/features/clients/schemas/client-schemas';
-import type { RequestCapture } from '@/testing/request-capture';
+import { setupServer } from "msw/node";
+import { http, HttpResponse, delay, type HttpHandler } from "msw";
+import { ModelFactory, type AppConfigOverrides } from "@/testing/model-factory";
+import { TEST_CONFIG } from "@/testing/test-config";
+import type { AppConfig } from "@/shared/config/app-config";
+import type {
+  ClientList,
+  ClientResponse,
+  CreateClientRequest,
+} from "@/features/clients/schemas/client-schemas";
+import type { RequestCapture } from "@/testing/request-capture";
 
 export interface SetupEndpointOptions<TBody = never> {
   delayMs?: number;
@@ -26,7 +30,7 @@ export async function applyCommon<TBody>(
     await delay(options.delayMs);
   }
   if (options.capture) {
-    const hasBody = request.method !== 'GET' && request.method !== 'HEAD';
+    const hasBody = request.method !== "GET" && request.method !== "HEAD";
     const body = (hasBody ? await request.clone().json() : undefined) as TBody;
     const url = new URL(request.url);
     options.capture.record({
@@ -39,17 +43,14 @@ export async function applyCommon<TBody>(
 }
 
 export const TestingApiServer = {
-  start: () => server.listen({ onUnhandledRequest: 'error' }),
+  start: () => server.listen({ onUnhandledRequest: "error" }),
   reset: () => server.resetHandlers(),
   stop: () => server.close(),
   use: (...handlers: HttpHandler[]) => server.use(...handlers),
-  setupConfig(
-    overrides: AppConfigOverrides = {},
-    options: SetupEndpointOptions = {},
-  ): AppConfig {
+  setupConfig(overrides: AppConfigOverrides = {}, options: SetupEndpointOptions = {}): AppConfig {
     const config = ModelFactory.createAppConfig(overrides);
     server.use(
-      http.get('/config.json', async ({ request }) => {
+      http.get("/config.json", async ({ request }) => {
         await applyCommon(request, options);
         return HttpResponse.json(config, { status: options.status ?? 200 });
       }),
@@ -58,7 +59,7 @@ export const TestingApiServer = {
   },
   setupGetClientList(list: ClientList, options: SetupEndpointOptions = {}) {
     server.use(
-      http.get(buildEndpointUrl('/clients'), async ({ request }) => {
+      http.get(buildEndpointUrl("/clients"), async ({ request }) => {
         await applyCommon(request, options);
         return HttpResponse.json(list, { status: options.status ?? 200 });
       }),
@@ -72,9 +73,12 @@ export const TestingApiServer = {
       }),
     );
   },
-  setupCreateClient(created: ClientResponse, options: SetupEndpointOptions<CreateClientRequest> = {}) {
+  setupCreateClient(
+    created: ClientResponse,
+    options: SetupEndpointOptions<CreateClientRequest> = {},
+  ) {
     server.use(
-      http.post(buildEndpointUrl('/clients'), async ({ request }) => {
+      http.post(buildEndpointUrl("/clients"), async ({ request }) => {
         await applyCommon(request, options);
         return HttpResponse.json(created, { status: options.status ?? 201 });
       }),

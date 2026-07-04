@@ -1,5 +1,5 @@
-import { z } from 'zod';
-import { createListSchema } from '@/shared/schemas/list-schema';
+import { z } from "zod";
+import { createListSchema } from "@/shared/schemas/list-schema";
 
 export const ClientResponseSchema = z.object({
   id: z.string(),
@@ -18,7 +18,7 @@ export const CreateClientRequestObjectSchema = z.object({
 
 export const CreateClientRequestSchema = CreateClientRequestObjectSchema.refine(
   (value) => Boolean(value.email?.trim()) || Boolean(value.phoneNumber?.trim()),
-  { message: 'Enter an email or a phone number.', path: ['contact'] },
+  { message: "Enter an email or a phone number.", path: ["contact"] },
 );
 
 export type ClientResponse = z.infer<typeof ClientResponseSchema>;

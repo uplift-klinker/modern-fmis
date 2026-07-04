@@ -1,8 +1,8 @@
-import { execFileSync } from 'node:child_process';
-import { fileURLToPath, URL } from 'node:url';
+import { execFileSync } from "node:child_process";
+import { fileURLToPath, URL } from "node:url";
 
-const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
-const apiUrl = 'http://localhost:8080';
+const repoRoot = fileURLToPath(new URL("../../", import.meta.url));
+const apiUrl = "http://localhost:8080";
 
 async function waitForApi(timeoutMs: number): Promise<void> {
   const deadline = Date.now() + timeoutMs;
@@ -17,9 +17,9 @@ async function waitForApi(timeoutMs: number): Promise<void> {
 }
 
 export default async function globalSetup(): Promise<void> {
-  execFileSync('docker', ['compose', 'up', '-d', '--build', 'backend'], {
+  execFileSync("docker", ["compose", "up", "-d", "--build", "backend"], {
     cwd: repoRoot,
-    stdio: 'inherit',
+    stdio: "inherit",
   });
   await waitForApi(120_000);
 }

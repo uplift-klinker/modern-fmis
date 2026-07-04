@@ -9,5 +9,11 @@
       "@/*": ["../frontend/src/*"]
     }
   },
-  "include": ["support", "system", "contract", "playwright.config.ts", "playwright.contract.config.ts"]
+  "include": [
+    "support",
+    "system",
+    "contract",
+    "playwright.config.ts",
+    "playwright.contract.config.ts"
+  ]
 }

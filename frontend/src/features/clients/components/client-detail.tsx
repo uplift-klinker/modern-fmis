@@ -1,6 +1,6 @@
-import { Box, Stack, Typography } from '@mui/material';
-import { clientsApi } from '@/features/clients/api/clients-api';
-import { QueryBoundary } from '@/shared/components/query-boundary';
+import { Box, Stack, Typography } from "@mui/material";
+import { clientsApi } from "@/features/clients/api/clients-api";
+import { QueryBoundary } from "@/shared/components/query-boundary";
 
 export function ClientDetail({ clientId }: { clientId: string }) {
   const result = clientsApi.useGetClientQuery(clientId);
@@ -13,8 +13,8 @@ export function ClientDetail({ clientId }: { clientId: string }) {
             {client.name}
           </Typography>
           <Stack spacing={1} sx={{ mt: 2 }}>
-            <Typography>Email: {client.email ?? '—'}</Typography>
-            <Typography>Phone: {client.phoneNumber ?? '—'}</Typography>
+            <Typography>Email: {client.email ?? "—"}</Typography>
+            <Typography>Phone: {client.phoneNumber ?? "—"}</Typography>
           </Stack>
         </Box>
       )}

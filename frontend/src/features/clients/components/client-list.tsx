@@ -1,6 +1,6 @@
-import { List, ListItemButton, ListItemText } from '@mui/material';
-import { clientsApi } from '@/features/clients/api/clients-api';
-import { QueryBoundary } from '@/shared/components/query-boundary';
+import { List, ListItemButton, ListItemText } from "@mui/material";
+import { clientsApi } from "@/features/clients/api/clients-api";
+import { QueryBoundary } from "@/shared/components/query-boundary";
 
 export function ClientList({ onSelectClient }: { onSelectClient: (clientId: string) => void }) {
   const result = clientsApi.useGetClientsQuery();
@@ -17,7 +17,7 @@ export function ClientList({ onSelectClient }: { onSelectClient: (clientId: stri
             <ListItemButton key={client.id} onClick={() => onSelectClient(client.id)}>
               <ListItemText
                 primary={client.name}
-                secondary={[client.email, client.phoneNumber].filter(Boolean).join(' · ') || '—'}
+                secondary={[client.email, client.phoneNumber].filter(Boolean).join(" · ") || "—"}
               />
             </ListItemButton>
           ))}

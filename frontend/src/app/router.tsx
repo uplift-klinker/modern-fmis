@@ -1,10 +1,10 @@
-import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from 'react-router-dom';
-import { AppLayout } from '@/app/app-layout';
-import { RequireAuth } from '@/routes/require-auth';
-import { WelcomePage } from '@/routes/welcome-page';
-import { UnauthorizedPage } from '@/routes/unauthorized-page';
-import { ClientsListPage } from '@/features/clients/pages/clients-list-page';
-import { ClientDetailPage } from '@/features/clients/pages/client-detail-page';
+import { Navigate, Route, createBrowserRouter, createRoutesFromElements } from "react-router-dom";
+import { AppLayout } from "@/app/app-layout";
+import { RequireAuth } from "@/routes/require-auth";
+import { WelcomePage } from "@/routes/welcome-page";
+import { UnauthorizedPage } from "@/routes/unauthorized-page";
+import { ClientsListPage } from "@/features/clients/pages/clients-list-page";
+import { ClientDetailPage } from "@/features/clients/pages/client-detail-page";
 
 export const appRoutes = (
   <>

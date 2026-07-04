@@ -1,8 +1,11 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogTitle } from '@mui/material';
-import { clientsApi } from '@/features/clients/api/clients-api';
-import { ClientForm } from '@/features/clients/components/client-form';
-import type { ClientResponse, CreateClientRequest } from '@/features/clients/schemas/client-schemas';
+import { useState } from "react";
+import { Dialog, DialogContent, DialogTitle } from "@mui/material";
+import { clientsApi } from "@/features/clients/api/clients-api";
+import { ClientForm } from "@/features/clients/components/client-form";
+import type {
+  ClientResponse,
+  CreateClientRequest,
+} from "@/features/clients/schemas/client-schemas";
 
 interface CreateClientDialogProps {
   open: boolean;

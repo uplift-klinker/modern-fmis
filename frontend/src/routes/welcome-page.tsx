@@ -1,5 +1,5 @@
-import { Box, Link, Typography } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom';
+import { Box, Link, Typography } from "@mui/material";
+import { Link as RouterLink } from "react-router-dom";
 
 export function WelcomePage() {
   return (

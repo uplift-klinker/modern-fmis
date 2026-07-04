@@ -1,6 +1,6 @@
-import { AppBar, Box, Button, Container, Toolbar, Typography } from '@mui/material';
-import { Outlet } from 'react-router-dom';
-import { useAuth } from '@/shared/auth/auth-context';
+import { AppBar, Box, Button, Container, Toolbar, Typography } from "@mui/material";
+import { Outlet } from "react-router-dom";
+import { useAuth } from "@/shared/auth/auth-context";
 
 export function AppLayout() {
   const auth = useAuth();
@@ -8,11 +8,11 @@ export function AppLayout() {
   return (
     <Box>
       <AppBar position="static">
-        <Toolbar sx={{ justifyContent: 'space-between' }}>
+        <Toolbar sx={{ justifyContent: "space-between" }}>
           <Typography variant="h6">modern-fmis</Typography>
           {auth.isAuthenticated && (
             <Button color="inherit" onClick={auth.logout}>
-              {auth.userEmail ?? 'Log out'}
+              {auth.userEmail ?? "Log out"}
             </Button>
           )}
         </Toolbar>
