@@ -41,6 +41,30 @@ describe("ClientList", () => {
     expect(await screen.findByText(/couldn't load clients/i)).toBeInTheDocument();
   });
 
+  it("shows an empty state with a refresh action when there are no clients", async () => {
+    TestingApiServer.setupGetClientList({ items: [], totalCount: 0 });
+
+    renderWithProviders(<ClientList onSelectClient={() => {}} />);
+
+    expect(await screen.findByText(/no clients yet/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /refresh/i })).toBeInTheDocument();
+  });
+
+  it("refreshes the list when the empty-state refresh is clicked", async () => {
+    TestingApiServer.setupGetClientList({ items: [], totalCount: 0 });
+
+    renderWithProviders(<ClientList onSelectClient={() => {}} />);
+    await screen.findByText(/no clients yet/i);
+
+    TestingApiServer.setupGetClientList({
+      items: [ModelFactory.createClient({ name: "Acme Farms" })],
+      totalCount: 1,
+    });
+    await userEvent.click(screen.getByRole("button", { name: /refresh/i }));
+
+    expect(await screen.findByText("Acme Farms")).toBeInTheDocument();
+  });
+
   it("calls onSelectClient with the client id when a client is clicked", async () => {
     const client = ModelFactory.createClient({ name: "Acme Farms" });
     TestingApiServer.setupGetClientList({ items: [client], totalCount: 1 });
