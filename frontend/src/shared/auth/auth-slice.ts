@@ -1,4 +1,4 @@
-import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 interface AuthSliceState {
   accessToken: string | null;
@@ -7,7 +7,7 @@ interface AuthSliceState {
 const initialState: AuthSliceState = { accessToken: null };
 
 const authSlice = createSlice({
-  name: 'auth',
+  name: "auth",
   initialState,
   reducers: {
     setAccessToken: (state, action: PayloadAction<string | null>) => {

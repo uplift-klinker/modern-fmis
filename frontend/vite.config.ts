@@ -1,22 +1,22 @@
-import { fileURLToPath, URL } from 'node:url';
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import { fileURLToPath, URL } from "node:url";
+import { defineConfig } from "vitest/config";
+import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
     },
   },
   test: {
-    environment: 'jsdom',
+    environment: "jsdom",
     globals: true,
-    setupFiles: ['./src/testing/setup.tsx'],
+    setupFiles: ["./src/testing/setup.tsx"],
     css: false,
     server: {
       deps: {
-        inline: ['@mui/material'],
+        inline: ["@mui/material"],
       },
     },
   },

@@ -1,7 +1,7 @@
-import { configureStore } from '@reduxjs/toolkit';
-import { api } from '@/shared/api/base-api';
-import { authReducer } from '@/shared/auth/auth-slice';
-import type { AppConfig } from '@/shared/config/app-config';
+import { configureStore } from "@reduxjs/toolkit";
+import { api } from "@/shared/api/base-api";
+import { authReducer } from "@/shared/auth/auth-slice";
+import type { AppConfig } from "@/shared/config/app-config";
 
 export function createStore(config: AppConfig) {
   return configureStore({
@@ -15,5 +15,5 @@ export function createStore(config: AppConfig) {
 }
 
 export type AppStore = ReturnType<typeof createStore>;
-export type RootState = ReturnType<AppStore['getState']>;
-export type AppDispatch = AppStore['dispatch'];
+export type RootState = ReturnType<AppStore["getState"]>;
+export type AppDispatch = AppStore["dispatch"];

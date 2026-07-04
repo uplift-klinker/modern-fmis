@@ -1,14 +1,14 @@
-import { faker } from '@faker-js/faker';
-import { AppConfigSchema, type AppConfig } from '@/shared/config/app-config';
+import { faker } from "@faker-js/faker";
+import { AppConfigSchema, type AppConfig } from "@/shared/config/app-config";
 import {
   ClientResponseSchema,
   ClientListSchema,
   type ClientResponse,
   type ClientList,
-} from '@/features/clients/schemas/client-schemas';
+} from "@/features/clients/schemas/client-schemas";
 
-export type AppConfigOverrides = Partial<Omit<AppConfig, 'auth'>> & {
-  auth?: Partial<AppConfig['auth']>;
+export type AppConfigOverrides = Partial<Omit<AppConfig, "auth">> & {
+  auth?: Partial<AppConfig["auth"]>;
 };
 
 function createAppConfig(overrides: AppConfigOverrides = {}): AppConfig {

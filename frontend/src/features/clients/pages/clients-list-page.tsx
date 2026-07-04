@@ -1,22 +1,22 @@
-import { useState } from 'react';
-import { Box, Button } from '@mui/material';
-import { Outlet, useNavigate } from 'react-router-dom';
-import { ClientList } from '@/features/clients/components/client-list';
-import { CreateClientDialog } from '@/features/clients/dialogs/create-client-dialog';
+import { useState } from "react";
+import { Box, Button } from "@mui/material";
+import { Outlet, useNavigate } from "react-router-dom";
+import { ClientList } from "@/features/clients/components/client-list";
+import { CreateClientDialog } from "@/features/clients/dialogs/create-client-dialog";
 
 export function ClientsListPage() {
   const navigate = useNavigate();
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <Box sx={{ display: 'flex', height: '100%' }}>
+    <Box sx={{ display: "flex", height: "100%" }}>
       <Box
         sx={{
           width: 320,
           flexShrink: 0,
-          overflowY: 'auto',
+          overflowY: "auto",
           borderRight: 1,
-          borderColor: 'divider',
+          borderColor: "divider",
         }}
       >
         <Box sx={{ p: 1 }}>
@@ -28,7 +28,7 @@ export function ClientsListPage() {
         <ClientList onSelectClient={(clientId) => navigate(`/clients/${clientId}`)} />
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: 'auto' }}>
+      <Box sx={{ flex: 1, overflowY: "auto" }}>
         <Outlet />
       </Box>
 

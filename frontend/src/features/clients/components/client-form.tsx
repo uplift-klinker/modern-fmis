@@ -1,6 +1,9 @@
-import { useForm } from '@tanstack/react-form';
-import { Alert, Button, Stack, TextField } from '@mui/material';
-import { CreateClientRequestSchema, type CreateClientRequest } from '@/features/clients/schemas/client-schemas';
+import { useForm } from "@tanstack/react-form";
+import { Alert, Button, Stack, TextField } from "@mui/material";
+import {
+  CreateClientRequestSchema,
+  type CreateClientRequest,
+} from "@/features/clients/schemas/client-schemas";
 
 interface ClientFormValues {
   name: string;
@@ -14,21 +17,21 @@ interface ClientFormProps {
   submitError?: string;
 }
 
-const EMPTY_VALUES: ClientFormValues = { name: '', email: null, phoneNumber: null };
+const EMPTY_VALUES: ClientFormValues = { name: "", email: null, phoneNumber: null };
 
 function extractMessages(error: unknown): string[] {
   if (!error) {
     return [];
   }
-  if (typeof error === 'string') {
+  if (typeof error === "string") {
     return [error];
   }
   if (Array.isArray(error)) {
     return error.flatMap(extractMessages);
   }
-  if (typeof error === 'object') {
+  if (typeof error === "object") {
     const candidate = error as { message?: unknown };
-    if (typeof candidate.message === 'string') {
+    if (typeof candidate.message === "string") {
       return [candidate.message];
     }
     return Object.values(error as Record<string, unknown>).flatMap(extractMessages);
@@ -36,7 +39,11 @@ function extractMessages(error: unknown): string[] {
   return [];
 }
 
-export function ClientForm({ onSubmit, defaultValues = EMPTY_VALUES, submitError }: ClientFormProps) {
+export function ClientForm({
+  onSubmit,
+  defaultValues = EMPTY_VALUES,
+  submitError,
+}: ClientFormProps) {
   const form = useForm({
     defaultValues,
     validators: { onSubmit: CreateClientRequestSchema },
@@ -65,7 +72,7 @@ export function ClientForm({ onSubmit, defaultValues = EMPTY_VALUES, submitError
                 onChange={(event) => field.handleChange(event.target.value)}
                 onBlur={field.handleBlur}
                 error={messages.length > 0}
-                helperText={messages.join(' ') || undefined}
+                helperText={messages.join(" ") || undefined}
               />
             );
           }}
@@ -75,7 +82,7 @@ export function ClientForm({ onSubmit, defaultValues = EMPTY_VALUES, submitError
           {(field) => (
             <TextField
               label="Email"
-              value={field.state.value ?? ''}
+              value={field.state.value ?? ""}
               onChange={(event) => field.handleChange(event.target.value)}
               onBlur={field.handleBlur}
             />
@@ -86,7 +93,7 @@ export function ClientForm({ onSubmit, defaultValues = EMPTY_VALUES, submitError
           {(field) => (
             <TextField
               label="Phone"
-              value={field.state.value ?? ''}
+              value={field.state.value ?? ""}
               onChange={(event) => field.handleChange(event.target.value)}
               onBlur={field.handleBlur}
             />
@@ -96,7 +103,9 @@ export function ClientForm({ onSubmit, defaultValues = EMPTY_VALUES, submitError
         <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
           {(onSubmitError) => {
             const messages = extractMessages(onSubmitError);
-            return messages.length > 0 ? <Alert severity="error">{messages.join(' ')}</Alert> : null;
+            return messages.length > 0 ? (
+              <Alert severity="error">{messages.join(" ")}</Alert>
+            ) : null;
           }}
         </form.Subscribe>
 

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export const AppConfigSchema = z.object({
   apiBaseUrl: z.string().min(1),
@@ -12,7 +12,7 @@ export const AppConfigSchema = z.object({
 export type AppConfig = z.infer<typeof AppConfigSchema>;
 
 export async function loadAppConfig(): Promise<AppConfig> {
-  const response = await fetch('/config.json', { cache: 'no-store' });
+  const response = await fetch("/config.json", { cache: "no-store" });
   if (!response.ok) {
     throw new Error(`Failed to load config.json: ${response.status}`);
   }
