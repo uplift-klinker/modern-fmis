@@ -90,6 +90,7 @@ jobs:
     with:
       command: preview
       environment: dev
+      gated_environment: dev
     secrets:
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}

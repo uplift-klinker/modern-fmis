@@ -9,6 +9,7 @@ public class ApplicationStack : Stack
 {
     [Output("backendUrl")] public Output<string> BackendUrl { get; private set; }
     [Output("frontendUrl")] public Output<string> FrontendUrl { get; private set; }
+    [Output("spaClientId")] public Output<string> SpaClientId { get; private set; }
 
     public ApplicationStack()
     {
@@ -75,5 +76,6 @@ public class ApplicationStack : Stack
 
         BackendUrl = backend.Url;
         FrontendUrl = frontendSite.Url;
+        SpaClientId = spaClient.ClientId;
     }
 }

@@ -105,4 +105,13 @@ public class ApplicationStackTests
         var credentials = resources.OfType<Auth0.ClientCredentials>().Single();
         Assert.Equal("none", await InfraTesting.GetAsync(credentials.AuthenticationMethod));
     }
+
+    [Fact]
+    public async Task Exposes_the_spa_client_id_output()
+    {
+        var resources = await InfraTesting.RunApplicationStackAsync();
+        var stack = resources.OfType<Fmis.Infra.Application.ApplicationStack>().Single();
+
+        Assert.NotNull(await InfraTesting.GetAsync(stack.SpaClientId));
+    }
 }
