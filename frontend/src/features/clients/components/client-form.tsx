@@ -79,30 +79,41 @@ export function ClientForm({
         </form.Field>
 
         <form.Field name="email">
-          {(field) => (
-            <TextField
-              label="Email"
-              value={field.state.value ?? ""}
-              onChange={(event) => field.handleChange(event.target.value)}
-              onBlur={field.handleBlur}
-            />
-          )}
+          {(field) => {
+            const messages = extractMessages(field.state.meta.errors);
+            return (
+              <TextField
+                label="Email"
+                value={field.state.value ?? ""}
+                onChange={(event) => field.handleChange(event.target.value || null)}
+                onBlur={field.handleBlur}
+                error={messages.length > 0}
+                helperText={messages.join(" ") || undefined}
+              />
+            );
+          }}
         </form.Field>
 
         <form.Field name="phoneNumber">
-          {(field) => (
-            <TextField
-              label="Phone"
-              value={field.state.value ?? ""}
-              onChange={(event) => field.handleChange(event.target.value)}
-              onBlur={field.handleBlur}
-            />
-          )}
+          {(field) => {
+            const messages = extractMessages(field.state.meta.errors);
+            return (
+              <TextField
+                label="Phone"
+                value={field.state.value ?? ""}
+                onChange={(event) => field.handleChange(event.target.value || null)}
+                onBlur={field.handleBlur}
+                error={messages.length > 0}
+                helperText={messages.join(" ") || undefined}
+              />
+            );
+          }}
         </form.Field>
 
         <form.Subscribe selector={(state) => state.errorMap.onSubmit}>
           {(onSubmitError) => {
-            const messages = extractMessages(onSubmitError);
+            const contact = (onSubmitError as Record<string, unknown> | null | undefined)?.contact;
+            const messages = extractMessages(contact);
             return messages.length > 0 ? (
               <Alert severity="error">{messages.join(" ")}</Alert>
             ) : null;

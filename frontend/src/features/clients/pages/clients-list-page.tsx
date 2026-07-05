@@ -9,14 +9,15 @@ export function ClientsListPage() {
   const [createOpen, setCreateOpen] = useState(false);
 
   return (
-    <Box sx={{ display: "flex", height: "100%" }}>
+    <Box sx={{ display: "flex", flex: 1, minHeight: 0 }}>
       <Box
         sx={{
           width: 320,
           flexShrink: 0,
-          overflowY: "auto",
           borderRight: 1,
           borderColor: "divider",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <Box sx={{ p: 1 }}>
@@ -25,10 +26,12 @@ export function ClientsListPage() {
           </Button>
         </Box>
 
-        <ClientList onSelectClient={(clientId) => navigate(`/clients/${clientId}`)} />
+        <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto" }}>
+          <ClientList onSelectClient={(clientId) => navigate(`/clients/${clientId}`)} />
+        </Box>
       </Box>
 
-      <Box sx={{ flex: 1, overflowY: "auto" }}>
+      <Box sx={{ flex: 1, minHeight: 0, overflowY: "auto", p: 3 }}>
         <Outlet />
       </Box>
 

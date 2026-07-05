@@ -1,6 +1,7 @@
-import { List, ListItemButton, ListItemText } from "@mui/material";
+import { ListItemButton, ListItemText } from "@mui/material";
 import { clientsApi } from "@/features/clients/api/clients-api";
 import { QueryBoundary } from "@/shared/components/query-boundary";
+import { EntityList } from "@/shared/components/entity-list";
 
 export function ClientList({ onSelectClient }: { onSelectClient: (clientId: string) => void }) {
   const result = clientsApi.useGetClientsQuery();
@@ -12,16 +13,20 @@ export function ClientList({ onSelectClient }: { onSelectClient: (clientId: stri
       errorMessage="We couldn't load clients. Please try again."
     >
       {(data) => (
-        <List>
-          {data.items.map((client) => (
-            <ListItemButton key={client.id} onClick={() => onSelectClient(client.id)}>
+        <EntityList
+          items={data.items}
+          emptyMessage="No clients yet."
+          onRefresh={result.refetch}
+          getKey={(client) => client.id}
+          renderItem={(client) => (
+            <ListItemButton onClick={() => onSelectClient(client.id)}>
               <ListItemText
                 primary={client.name}
                 secondary={[client.email, client.phoneNumber].filter(Boolean).join(" · ") || "—"}
               />
             </ListItemButton>
-          ))}
-        </List>
+          )}
+        />
       )}
     </QueryBoundary>
   );

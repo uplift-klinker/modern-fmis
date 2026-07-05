@@ -31,6 +31,30 @@ describe("ClientForm", () => {
     expect(onSubmit).not.toHaveBeenCalled();
   });
 
+  it("shows an error and blocks submit for an invalid email", async () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<ClientForm onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText(/name/i), "Acme Farms");
+    await userEvent.type(screen.getByLabelText(/email/i), "a");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(await screen.findByText(/valid email/i)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
+  it("shows an error and blocks submit for an invalid phone number", async () => {
+    const onSubmit = vi.fn();
+    renderWithProviders(<ClientForm onSubmit={onSubmit} />);
+
+    await userEvent.type(screen.getByLabelText(/name/i), "Acme Farms");
+    await userEvent.type(screen.getByLabelText(/phone/i), "555");
+    await userEvent.click(screen.getByRole("button", { name: /save/i }));
+
+    expect(await screen.findByText(/valid phone/i)).toBeInTheDocument();
+    expect(onSubmit).not.toHaveBeenCalled();
+  });
+
   it("shows a submit error when one is provided", () => {
     renderWithProviders(
       <ClientForm onSubmit={() => {}} submitError="That client already exists." />,

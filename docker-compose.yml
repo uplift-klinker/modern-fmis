@@ -21,6 +21,7 @@ services:
       dockerfile: backend/src/Fmis.Api/Dockerfile
     environment:
       ConnectionStrings__Fmis: "Host=db;Port=5432;Database=fmis;Username=fmis;Password=fmis"
+      Cors__AllowedOrigin: "http://localhost:5173"
     ports:
       - "8080:8080"
     depends_on:

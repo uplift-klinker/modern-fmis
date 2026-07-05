@@ -1,5 +1,7 @@
 import { z } from "zod";
 import { createListSchema } from "@/shared/schemas/list-schema";
+import { EmailSchema } from "@/shared/schemas/email-schema";
+import { PhoneNumberSchema } from "@/shared/schemas/phone-number-schema";
 
 export const ClientResponseSchema = z.object({
   id: z.string(),
@@ -12,8 +14,8 @@ export const ClientListSchema = createListSchema(ClientResponseSchema);
 
 export const CreateClientRequestObjectSchema = z.object({
   name: z.string().min(1),
-  email: z.string().nullable(),
-  phoneNumber: z.string().nullable(),
+  email: EmailSchema.nullable(),
+  phoneNumber: PhoneNumberSchema.nullable(),
 });
 
 export const CreateClientRequestSchema = CreateClientRequestObjectSchema.refine(
