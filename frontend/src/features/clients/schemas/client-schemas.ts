@@ -22,13 +22,17 @@ const optionalPhoneNumber = z
   .nullable()
   .refine(
     (value) => {
-      if (!value?.trim()) {
+      const trimmed = value?.trim();
+      if (!trimmed) {
         return true;
       }
-      const digitCount = value.replace(/\D/g, "").length;
+      if (!trimmed.startsWith("+")) {
+        return false;
+      }
+      const digitCount = trimmed.replace(/\D/g, "").length;
       return digitCount >= 10 && digitCount <= 15;
     },
-    { message: "Enter a valid phone number." },
+    { message: "Enter a valid phone number with a country code, e.g. +1 555 555 0100." },
   );
 
 export const CreateClientRequestObjectSchema = z.object({

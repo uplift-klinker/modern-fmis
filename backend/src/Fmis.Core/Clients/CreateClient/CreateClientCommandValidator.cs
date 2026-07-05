@@ -14,7 +14,8 @@ public class CreateClientCommandValidator : AbstractValidator<CreateClientComman
             .When(c => !string.IsNullOrWhiteSpace(c.Email));
 
         RuleFor(c => c.PhoneNumber)
-            .Must(BeAValidPhoneNumber).WithMessage("Enter a valid phone number.")
+            .Must(BeAValidPhoneNumber)
+            .WithMessage("Enter a valid phone number with a country code, e.g. +1 555 555 0100.")
             .When(c => !string.IsNullOrWhiteSpace(c.PhoneNumber));
 
         RuleFor(c => c)
@@ -28,7 +29,13 @@ public class CreateClientCommandValidator : AbstractValidator<CreateClientComman
 
     private static bool BeAValidPhoneNumber(string? phoneNumber)
     {
-        var digitCount = (phoneNumber ?? string.Empty).Count(char.IsDigit);
+        var value = (phoneNumber ?? string.Empty).Trim();
+        if (!value.StartsWith('+'))
+        {
+            return false;
+        }
+
+        var digitCount = value.Count(char.IsDigit);
         return digitCount is >= 10 and <= 15;
     }
 }
