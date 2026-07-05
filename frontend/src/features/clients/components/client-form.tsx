@@ -85,7 +85,7 @@ export function ClientForm({
               <TextField
                 label="Email"
                 value={field.state.value ?? ""}
-                onChange={(event) => field.handleChange(event.target.value)}
+                onChange={(event) => field.handleChange(event.target.value || null)}
                 onBlur={field.handleBlur}
                 error={messages.length > 0}
                 helperText={messages.join(" ") || undefined}
@@ -101,7 +101,7 @@ export function ClientForm({
               <TextField
                 label="Phone"
                 value={field.state.value ?? ""}
-                onChange={(event) => field.handleChange(event.target.value)}
+                onChange={(event) => field.handleChange(event.target.value || null)}
                 onBlur={field.handleBlur}
                 error={messages.length > 0}
                 helperText={messages.join(" ") || undefined}
