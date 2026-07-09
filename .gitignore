@@ -487,3 +487,6 @@ $RECYCLE.BIN/
 
 # Superpowers brainstorm scratch
 .superpowers/
+
+# air (Go live-reload) scratch
+.air/
